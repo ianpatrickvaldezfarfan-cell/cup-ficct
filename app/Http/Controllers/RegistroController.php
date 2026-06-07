@@ -7,13 +7,52 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Controlador del flujo de registro publico de postulantes (3 pasos).
+ * CU5 - GESTIONAR DOCUMENTOS DE POSTULANTES
+ * Diagrama de Secuencia:
+ * Postulante → «UI» ModuloDocumentos → «CC» RegistroController
+ *           → «S» ServidorArchivos → «E» DocumentosPostulantes
  *
+ * Mensajes del diagrama:
+ * 1: adjuntarDocumento(tipo, archivo) - Postulante → UI
+ * 1.1: procesarDocumento(postulacion_id, tipo, archivo)
+ * ALT [formato inválido: no es PDF/JPG/PNG]:
+ *   1.6: retornarError(formato no permitido)
+ *   1.6b: mostrarError(formato no permitido)
+ * ALT [tamaño excedido: mayor a 5MB]:
+ *   1.7: retornarError(archivo demasiado grande)
+ *   1.7b: mostrarError(archivo demasiado grande)
+ * ALT [archivo válido]:
+ *   1.2: almacenarArchivo(archivo) - Controller → ServidorArchivos
+ *   1.3: [urlArchivo] - ServidorArchivos → Controller
+ *   1.4: registrarDocumento(postulacion_id, tipo, urlArchivo)
+ *   1.5: [documentoRegistrado]
+ *   1.8: mostrarConfirmacion(documento adjuntado correctamente)
+ *
+ * CU6 - GESTIONAR PAGOS
+ * Diagrama de Secuencia:
+ * Postulante → «UI» PasarelaPago → «CC» RegistroController
+ *           → «E» Pagos → «E» Usuarios
+ *
+ * Mensajes del diagrama:
+ * 1: iniciarPago(postulacion_id, concepto, monto: Bs. 700)
+ * 1.1: procesarPago(postulacion_id, monto, concepto)
+ * 1.2: enviarTransaccion(monto, datos) - Controller → Pagos
+ * 1.3: [referenciaTransaccion]
+ * ALT [pago PENDIENTE]:
+ *   1.6: bloquearAvanceInscripcion()
+ *   1.8: mostrarEstadoPago(PENDIENTE)
+ * ALT [pago COMPLETADO]:
+ *   1.4: registrarPago(postulacion_id, concepto, monto,
+ *        fecha, referencia, estado: COMPLETADO)
+ *   1.5: [pagoRegistrado]
+ *   1.7b: crearUsuario(username=correo, password=CI)
+ *   1.7c: actualizarPostulacion(estado: EN PROCESO)
+ *
+ * Controlador del flujo de registro publico de postulantes (3 pasos).
  * Implementa el proceso de auto-inscripcion sin intervencion del administrador:
  * - paso1:  Datos personales + verificacion de cupos + postulacion(PENDIENTE_PAGO)
  * - paso1b: Subida de documentos requeridos al storage del servidor
  * - paso2:  Confirmacion de pago + creacion de usuario + credenciales de acceso
- *
  * Los tres pasos estan vinculados por postulacion_id retornado en paso1
  * y enviado como parametro en paso1b y paso2.
  */
@@ -133,6 +172,11 @@ class RegistroController extends Controller
      */
     public function paso1b(Request $request)
     {
+        // DIAGRAMA SECUENCIA CU5 - Mensajes 1.1, 1.2, 1.3, 1.4, 1.5
+        // Validar formato (mimes:pdf,jpg,jpeg,png) → Mensaje ALT válido
+        // Validar tamaño máximo 5MB → Mensaje ALT tamaño excedido
+        // Almacenar en storage/documentos/{postulacion_id}/
+        // UPDATE documentos_postulantes SET url = ruta_archivo
         $request->validate([
             'postulacion_id' => 'required|integer|exists:postulaciones,id',
             'documento_0'    => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
@@ -186,6 +230,11 @@ class RegistroController extends Controller
 
     public function paso2(Request $request)
     {
+        // DIAGRAMA SECUENCIA CU6 - Mensajes 1.4, 1.5, 1.7b, 1.7c
+        // INSERT en pagos con estado COMPLETADO
+        // Generar credenciales: username=inicial+apellidos, password=aleatorio
+        // INSERT en usuarios (rol_id=3)
+        // UPDATE postulaciones SET estado_admision = EN PROCESO
         $request->validate(['postulacion_id' => 'required|integer|exists:postulaciones,id']);
 
         $postulacion = DB::table('postulaciones')->where('id', $request->postulacion_id)->first();
@@ -217,12 +266,13 @@ class RegistroController extends Controller
 
             // 4. Crear usuario
             $usuarioId = DB::table('usuarios')->insertGetId([
-                'rol_id'     => 3,
-                'username'   => $username,
-                'password'   => Hash::make($password),
-                'correo'     => $postulante->correo,
-                'estado'     => true,
-                'created_at' => now(),
+                'rol_id'         => 3,
+                'username'       => $username,
+                'password'       => $password,
+                'password_texto' => $password,
+                'correo'         => $postulante->correo,
+                'estado'         => true,
+                'created_at'     => now(),
             ]);
 
             // 5. Vincular usuario al postulante

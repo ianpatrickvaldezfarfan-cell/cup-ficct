@@ -7,8 +7,27 @@ use Illuminate\Support\Facades\Hash;
 use App\Services\BitacoraService;
 
 /**
- * Controlador CRUD de postulantes (CU3 - Gestionar Postulantes).
+ * CU3 - GESTIONAR POSTULANTES
+ * Diagrama de Secuencia:
+ * Actor → «UI» ModuloPostulantes → «CC» PostulanteController → «E» Postulantes
  *
+ * Mensajes del diagrama:
+ * 1: enviarDatosPostulante(ci, nombres, apellidos, fecha_nac,
+ *    genero, direccion, telefono, colegio, ciudad) - Actor → UI
+ * 1.1: procesarFormulario(datos) - UI → Controller
+ * 1.2: validarCamposObligatorios(datos) - Controller → Postulantes
+ * 1.3: [camposValidos] - Postulantes → Controller
+ * 1.4: verificarCI(ci) - Controller → Postulantes
+ * 1.5: [resultadoCI] - Postulantes → Controller
+ * ALT [CI duplicado]:
+ *   1.6: retornarError(CI ya registrado)
+ *   1.7: mostrarError(CI duplicado)
+ * ALT [CI válido]:
+ *   1.8: store/update/destroy/search/index() - Controller → Postulantes
+ *   1.9: [confirmacionOperacion] - Postulantes → Controller
+ *   1.10: mostrarResultado() - Controller → UI → Actor
+ *
+ * Controlador CRUD de postulantes (CU3 - Gestionar Postulantes).
  * Administra el ciclo de vida completo de los postulantes desde el panel administrativo.
  * El método store() crea en una sola transacción: usuario (rol_id=3) + postulante +
  * postulacion (EN PROCESO), con verificación atómica de cupos usando lockForUpdate().
@@ -26,6 +45,8 @@ class PostulanteController extends Controller
      */
     public function index()
     {
+        // DIAGRAMA SECUENCIA CU3 - Mensaje 1.8 [buscar/listar]
+        // index() → retorna lista completa de postulantes con grupo asignado
         $gestion = date('Y');
         $postulantes = DB::table('postulantes as p')
             ->leftJoin('postulaciones as po', function ($join) use ($gestion) {
@@ -56,6 +77,10 @@ class PostulanteController extends Controller
      */
     public function store(Request $request)
     {
+        // DIAGRAMA SECUENCIA CU3 - Mensajes 1.2, 1.4, 1.8 [registrar]
+        // 1.2: validarCamposObligatorios - $request->validate()
+        // 1.4: verificarCI - unique:postulantes,ci
+        // 1.8: store - INSERT en postulantes + usuarios + postulaciones
         $request->validate([
             'ci'                  => 'required|string|unique:postulantes,ci',
             'nombres'             => 'required|string',
@@ -88,7 +113,7 @@ class PostulanteController extends Controller
                 $usuario_id = DB::table('usuarios')->insertGetId([
                     'rol_id'     => 3,
                     'username'   => $request->correo,
-                    'password'   => Hash::make($request->ci),
+                    'password'   => $request->ci,
                     'correo'     => $request->correo,
                     'estado'     => true,
                     'created_at' => now(),
@@ -160,6 +185,8 @@ class PostulanteController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // DIAGRAMA SECUENCIA CU3 - Mensaje 1.8 [modificar]
+        // UPDATE en tabla postulantes WHERE id = $id
         $request->validate([
             'ci'                  => 'required|string|unique:postulantes,ci,' . $id,
             'nombres'             => 'required|string',
@@ -204,6 +231,9 @@ class PostulanteController extends Controller
      */
     public function destroy($id)
     {
+        // DIAGRAMA SECUENCIA CU3 - Mensaje 1.8 [eliminar]
+        // DELETE en cascada: notas → grupo_postulantes →
+        // pagos → documentos → postulaciones → postulantes → usuarios
         $postulante = DB::table('postulantes')->where('id', $id)->first();
         if (!$postulante) {
             return response()->json(['message' => 'Postulante no encontrado'], 404);
@@ -288,7 +318,8 @@ class PostulanteController extends Controller
      * @param  Request $request  Parámetro 'q' de búsqueda
      * @return \Illuminate\Http\JsonResponse  Array de postulantes coincidentes
      */
-    // Buscar postulante
+    // DIAGRAMA SECUENCIA CU3 - Mensaje 1.8 [buscar]
+    // SELECT WHERE ci ILIKE o nombres ILIKE criterio
     public function search(Request $request)
     {
         $q       = $request->query('q');

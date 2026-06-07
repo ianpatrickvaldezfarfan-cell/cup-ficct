@@ -17,6 +17,17 @@ function formatSize(bytes) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+/**
+ * CU5 - GESTIONAR DOCUMENTOS DE POSTULANTES
+ * Mensaje 1: adjuntarDocumento(tipo, archivo) → handleSeleccionarArchivo()
+ * ALT [archivo válido]:
+ *   Mensaje 1.2: almacenarArchivo() → POST /api/registro/paso1b
+ *   Mensaje 1.8: mostrarConfirmacion() → badge verde Listo
+ * ALT [formato inválido]:
+ *   Mensaje 1.6: retornarError(formato no permitido)
+ * ALT [tamaño excedido]:
+ *   Mensaje 1.7: retornarError(archivo demasiado grande)
+ */
 function SubirDocumentos({ datos, onPagar, onVolver }) {
     const [archivos, setArchivos]         = useState({ documento_0: null, documento_1: null, documento_2: null, documento_3: null });
     const [errores, setErrores]           = useState({});
@@ -79,142 +90,230 @@ function SubirDocumentos({ datos, onPagar, onVolver }) {
         }
     };
 
-    return (
-        <div className="min-vh-100 bg-light py-4">
-            <div className="container" style={{ maxWidth: 680 }}>
+    const pasos = ['Datos', 'Documentos', 'Pago', 'Credenciales'];
+    const pasosProceso = ['Datos personales', 'Documentos', 'Pago Bs. 700', 'Credenciales'];
 
-                {/* Header con pasos */}
-                <div className="text-center mb-4">
-                    <h2 className="fw-bold text-primary mb-1">CUP - FICCT</h2>
-                    <p className="text-muted mb-0">Documentos Requeridos</p>
-                    <div className="d-flex justify-content-center gap-2 mt-3">
-                        {['Datos', 'Documentos', 'Pago', 'Credenciales'].map((s, i) => (
-                            <span key={i} className={`badge rounded-pill px-3 py-2 ${i === 1 ? 'bg-primary' : 'bg-secondary bg-opacity-25 text-secondary'}`}>
-                                {i + 1}. {s}
-                            </span>
+    return (
+        <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+
+            {/* LEFT PANEL */}
+            <div className="d-none d-md-flex" style={{
+                flex: '0 0 35%', background: '#1a3a6b',
+                flexDirection: 'column', justifyContent: 'center',
+                padding: '3rem 2.5rem', position: 'sticky', top: 0, height: '100vh',
+                overflow: 'hidden',
+            }}>
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1.5px, transparent 1.5px)',
+                    backgroundSize: '28px 28px',
+                }} />
+                <div style={{ position: 'absolute', top: -70, right: -70, width: 240, height: 240, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+                <div style={{ position: 'absolute', bottom: -50, left: -50, width: 180, height: 180, borderRadius: '50%', background: 'rgba(245,158,11,0.06)' }} />
+
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                    <div style={{
+                        width: 72, height: 72, borderRadius: '50%',
+                        background: 'rgba(245,158,11,0.15)', border: '2px solid rgba(245,158,11,0.45)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        marginBottom: '1.1rem', fontSize: '2.2rem', lineHeight: 1,
+                    }}>🎓</div>
+
+                    <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.6rem', marginBottom: '0.3rem' }}>
+                        CUP - FICCT
+                    </h2>
+                    <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.84rem', marginBottom: '1.5rem' }}>
+                        Facultad de Ingeniería — UAGRM
+                    </p>
+
+                    <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', marginBottom: '1.5rem' }} />
+
+                    <p style={{ color: '#f59e0b', fontWeight: 700, fontSize: '0.72rem', marginBottom: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        Proceso de Inscripción
+                    </p>
+                    {pasosProceso.map((paso, i) => (
+                        <div key={paso} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '0.7rem' }}>
+                            <div style={{
+                                background: i === 0 ? '#10b981' : i === 1 ? '#f59e0b' : 'rgba(255,255,255,0.15)',
+                                color: i < 2 ? (i === 0 ? '#fff' : '#1a3a6b') : 'rgba(255,255,255,0.8)',
+                                borderRadius: '50%', width: 26, height: 26,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '0.78rem', fontWeight: 700, flexShrink: 0,
+                            }}>{i === 0 ? '✓' : i + 1}</div>
+                            <span style={{
+                                color: i === 1 ? '#f59e0b' : i === 0 ? '#10b981' : 'rgba(255,255,255,0.65)',
+                                fontSize: '0.84rem', fontWeight: i === 1 ? 700 : 400,
+                            }}>{paso}</span>
+                        </div>
+                    ))}
+
+                    <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', margin: '1.5rem 0' }} />
+
+                    <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 10, padding: '1rem' }}>
+                        <p style={{ color: '#f59e0b', fontWeight: 600, fontSize: '0.8rem', margin: '0 0 0.4rem' }}>
+                            📋 Documentos requeridos
+                        </p>
+                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem', margin: 0, lineHeight: 1.5 }}>
+                            Formatos: PDF, JPG, PNG<br />
+                            Tamaño máximo: 5 MB por archivo
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* RIGHT PANEL */}
+            <div style={{
+                flexGrow: 1, background: '#fff',
+                overflowY: 'auto', padding: '2.5rem 2.5rem 3rem',
+            }}>
+                <div style={{ maxWidth: 640, margin: '0 auto' }}>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <h3 style={{ fontWeight: 700, color: '#1a3a6b', marginBottom: '0.25rem', fontSize: '1.4rem' }}>
+                            📄 Documentos Requeridos
+                        </h3>
+                        <p style={{ color: '#64748b', fontSize: '0.88rem', margin: '0 0 0.75rem' }}>
+                            Documentos de {datos?.nombres} {datos?.apellidos}
+                        </p>
+                        <div style={{ height: 3, width: 48, background: '#f59e0b', borderRadius: 2 }} />
+                    </div>
+
+                    {/* Step progress bar */}
+                    <div style={{ display: 'flex', marginBottom: '2rem', borderRadius: 10, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                        {pasos.map((s, i) => (
+                            <div key={s} style={{
+                                flex: 1, padding: '0.65rem 0.5rem', textAlign: 'center',
+                                fontSize: '0.78rem', fontWeight: 600,
+                                borderTop: `3px solid ${i === 0 ? '#10b981' : i === 1 ? '#f59e0b' : '#e2e8f0'}`,
+                                color: i === 0 ? '#10b981' : i === 1 ? '#f59e0b' : '#94a3b8',
+                                background: i === 1 ? '#fffbeb' : '#fff',
+                                borderRight: i < pasos.length - 1 ? '1px solid #e2e8f0' : 'none',
+                            }}>
+                                {i === 0 ? '✓' : i === 1 ? '◉' : `${i + 1}`} {s}
+                            </div>
                         ))}
                     </div>
-                </div>
 
-                <div className="card shadow-sm mb-4">
-                    <div className="card-header bg-primary text-white py-2">
-                        <h6 className="mb-0 fw-bold">
-                            Documentos de {datos?.nombres} {datos?.apellidos}
-                        </h6>
-                    </div>
-                    <div className="card-body">
-                        <p className="text-muted small mb-3">
-                            Sube los documentos necesarios para completar tu inscripción.
-                            Formatos aceptados: <strong>PDF, JPG, JPEG, PNG</strong>. Tamaño máximo: <strong>5 MB</strong>.
-                        </p>
-
-                        {/* Barra de progreso */}
-                        <div className="mb-4">
-                            <div className="d-flex justify-content-between small mb-1">
-                                <span className="fw-semibold">Progreso</span>
-                                <span className={seleccionados === DOCS.length ? 'text-success fw-bold' : 'text-muted'}>
-                                    {seleccionados} / {DOCS.length} documentos listos
-                                </span>
-                            </div>
-                            <div className="progress" style={{ height: 10 }}>
-                                <div
-                                    className={`progress-bar ${seleccionados === DOCS.length ? 'bg-success' : 'bg-primary'}`}
-                                    style={{ width: `${progreso}%`, transition: 'width .3s ease' }}
-                                />
-                            </div>
+                    {/* Progress bar */}
+                    <div style={{ background: '#f8fafc', borderRadius: 10, padding: '1rem 1.25rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#475569' }}>Progreso de carga</span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: seleccionados === DOCS.length ? '#059669' : '#f59e0b' }}>
+                                {seleccionados} / {DOCS.length} documentos
+                            </span>
                         </div>
+                        <div style={{ background: '#e2e8f0', borderRadius: 99, height: 10, overflow: 'hidden' }}>
+                            <div style={{
+                                height: '100%', width: `${progreso}%`,
+                                background: seleccionados === DOCS.length
+                                    ? 'linear-gradient(90deg,#059669,#10b981)'
+                                    : 'linear-gradient(90deg,#f59e0b,#fbbf24)',
+                                borderRadius: 99, transition: 'width 0.3s ease',
+                            }} />
+                        </div>
+                    </div>
 
-                        {errorGeneral && (
-                            <div className="alert alert-danger py-2 small mb-3">{errorGeneral}</div>
-                        )}
+                    {errorGeneral && (
+                        <div className="alert alert-danger py-2 small mb-3" style={{ borderRadius: 8 }}>
+                            {errorGeneral}
+                        </div>
+                    )}
 
-                        {/* Tarjetas de documentos */}
-                        <div className="d-flex flex-column gap-3">
-                            {DOCS.map(({ key, tipo, icono }) => {
-                                const archivo = archivos[key];
-                                const error   = errores[key];
-                                const listo   = !!archivo && !error;
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '2rem' }}>
+                        {DOCS.map(({ key, tipo, icono }) => {
+                            const archivo = archivos[key];
+                            const error   = errores[key];
+                            const listo   = !!archivo && !error;
 
-                                return (
-                                    <div
-                                        key={key}
-                                        className={`border rounded-3 p-3 ${
-                                            listo  ? 'border-success bg-success bg-opacity-10' :
-                                            error  ? 'border-danger bg-danger bg-opacity-10'   :
-                                                     'border-secondary border-opacity-25'
-                                        }`}
-                                    >
-                                        <div className="d-flex align-items-center justify-content-between gap-3">
-                                            {/* Info del documento */}
-                                            <div className="d-flex align-items-center gap-3" style={{ minWidth: 0, flex: 1 }}>
-                                                <span style={{ fontSize: '1.8rem', lineHeight: 1, flexShrink: 0 }}>
-                                                    {icono}
-                                                </span>
-                                                <div style={{ minWidth: 0 }}>
-                                                    <div className="fw-semibold">{tipo}</div>
-                                                    {archivo && !error ? (
-                                                        <div className="text-success small text-truncate" style={{ maxWidth: 300 }}>
-                                                            {archivo.name} · {formatSize(archivo.size)}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-muted small">PDF, JPG, PNG · máx. 5 MB</div>
-                                                    )}
-                                                    {error && (
-                                                        <div className="text-danger small mt-1">{error}</div>
-                                                    )}
+                            return (
+                                <div key={key} style={{
+                                    borderRadius: 12,
+                                    padding: '1rem 1.2rem',
+                                    border: `1.5px solid ${listo ? '#10b981' : error ? '#ef4444' : '#e2e8f0'}`,
+                                    background: listo ? '#f0fdf4' : error ? '#fef2f2' : '#fff',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                                    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                                        <span style={{ fontSize: '2rem', lineHeight: 1, flexShrink: 0 }}>{icono}</span>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>{tipo}</div>
+                                            {listo ? (
+                                                <div style={{ color: '#059669', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>
+                                                    ✓ {archivo.name} · {formatSize(archivo.size)}
                                                 </div>
-                                            </div>
-
-                                            {/* Badge + botón */}
-                                            <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
-                                                <span className={`badge ${listo ? 'bg-success' : 'bg-danger'}`}>
-                                                    {listo ? '✓ Listo' : 'Requerido'}
-                                                </span>
-                                                <input
-                                                    ref={refs[key]}
-                                                    type="file"
-                                                    accept={ACCEPT}
-                                                    className="d-none"
-                                                    onChange={e => handleFile(key, e.target.files[0])}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className={`btn btn-sm ${listo ? 'btn-outline-success' : 'btn-outline-primary'}`}
-                                                    onClick={() => refs[key].current.click()}
-                                                >
-                                                    {listo ? 'Cambiar' : 'Seleccionar'}
-                                                </button>
-                                            </div>
+                                            ) : error ? (
+                                                <div style={{ color: '#ef4444', fontSize: '0.78rem' }}>{error}</div>
+                                            ) : (
+                                                <div style={{ color: '#94a3b8', fontSize: '0.78rem' }}>PDF, JPG, PNG · máx. 5 MB</div>
+                                            )}
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
 
-                {/* Acciones */}
-                <div className="d-flex gap-3 justify-content-between mb-5">
-                    <button
-                        type="button"
-                        className="btn btn-outline-secondary"
-                        onClick={onVolver}
-                        disabled={enviando}
-                    >
-                        ← Volver
-                    </button>
-                    <button
-                        type="button"
-                        className="btn btn-primary px-4"
-                        onClick={handleSubmit}
-                        disabled={!listoParaEnviar}
-                        title={seleccionados < DOCS.length ? `Faltan ${DOCS.length - seleccionados} documento(s)` : ''}
-                    >
-                        {enviando
-                            ? <><span className="spinner-border spinner-border-sm me-2" />Subiendo...</>
-                            : `Continuar al Pago → (${seleccionados}/${DOCS.length})`
-                        }
-                    </button>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                                        <span style={{
+                                            fontSize: '0.72rem', fontWeight: 700, padding: '0.25rem 0.6rem',
+                                            borderRadius: 20,
+                                            background: listo ? '#dcfce7' : '#fef9c3',
+                                            color: listo ? '#059669' : '#92400e',
+                                        }}>
+                                            {listo ? '✓ Listo' : 'Pendiente'}
+                                        </span>
+                                        <input
+                                            ref={refs[key]}
+                                            type="file"
+                                            accept={ACCEPT}
+                                            className="d-none"
+                                            onChange={e => handleFile(key, e.target.files[0])}
+                                        />
+                                        <button
+                                            type="button"
+                                            style={{
+                                                border: `1.5px solid ${listo ? '#059669' : '#2563eb'}`,
+                                                background: 'transparent',
+                                                color: listo ? '#059669' : '#2563eb',
+                                                borderRadius: 7, padding: '0.4rem 0.9rem',
+                                                fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                                            }}
+                                            onClick={() => refs[key].current.click()}
+                                        >
+                                            {listo ? '↺ Cambiar' : '+ Seleccionar'}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="d-flex flex-column flex-sm-row gap-3 justify-content-between">
+                        <button
+                            type="button"
+                            style={{ background: 'transparent', border: '1.5px solid #cbd5e1', color: '#64748b', borderRadius: 8, padding: '0.6rem 1.25rem', cursor: 'pointer', fontWeight: 500 }}
+                            onClick={onVolver}
+                            disabled={enviando}
+                        >
+                            ← Volver
+                        </button>
+                        <button
+                            type="button"
+                            style={{
+                                background: !listoParaEnviar ? '#94a3b8' : '#f59e0b',
+                                color: !listoParaEnviar ? '#fff' : '#1a3a6b',
+                                border: 'none', borderRadius: 8,
+                                padding: '0.6rem 1.5rem', fontWeight: 700,
+                                cursor: listoParaEnviar ? 'pointer' : 'not-allowed',
+                                boxShadow: listoParaEnviar ? '0 4px 14px rgba(245,158,11,0.4)' : 'none',
+                                fontSize: '0.95rem', flexGrow: 1,
+                            }}
+                            onClick={handleSubmit}
+                            disabled={!listoParaEnviar}
+                            title={seleccionados < DOCS.length ? `Faltan ${DOCS.length - seleccionados} documento(s)` : ''}
+                        >
+                            {enviando
+                                ? <><span className="spinner-border spinner-border-sm me-2" />Subiendo...</>
+                                : `Continuar al Pago → (${seleccionados}/${DOCS.length})`
+                            }
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

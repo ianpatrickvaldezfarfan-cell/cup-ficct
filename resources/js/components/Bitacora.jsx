@@ -2,103 +2,71 @@ import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-/**
- * Panel de consulta de la Bitacora del sistema (CU14 - Administrador).
- *
- * Este componente tiene DOS flujos de uso:
- * 1) Consulta manual: el administrador filtra y visualiza registros de auditoria
- * 2) Registro automatico: BitacoraService (backend) inserta entradas en cada
- *    operacion de escritura de los demas modulos, transparente al usuario
- *
- * Los registros se identifican por accion (INSERT/UPDATE/DELETE/LOGIN/LOGOUT)
- * y tabla afectada. Se muestran los ultimos 100 registros (o filtrados).
- *
- * Los filtros son acumulativos: turno activo + texto de busqueda se combinan.
- * La exportacion CSV incluye BOM UTF-8 para correcta apertura en Excel.
- * La exportacion PDF usa orientacion horizontal (landscape) por la cantidad de columnas.
- *
- * @param {Function} onBack Callback para volver al Dashboard
- */
-
-// Tipos de acciones registradas en la bitacora
 const ACCIONES = ['INSERT', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT'];
 const TABLAS   = ['postulantes', 'docentes', 'notas', 'grupos', 'usuarios'];
 
 function AccionBadge({ accion }) {
     const cfg = {
-        INSERT: { cls: 'bg-success',         label: 'INSERT'  },
-        UPDATE: { cls: 'bg-warning text-dark',label: 'UPDATE'  },
-        DELETE: { cls: 'bg-danger',           label: 'DELETE'  },
-        LOGIN:  { cls: 'bg-primary',          label: 'LOGIN'   },
-        LOGOUT: { cls: 'bg-secondary',        label: 'LOGOUT'  },
+        INSERT: { bg: '#dcfce7', color: '#15803d' },
+        UPDATE: { bg: '#fef9c3', color: '#b45309' },
+        DELETE: { bg: '#fee2e2', color: '#dc2626' },
+        LOGIN:  { bg: '#dbeafe', color: '#1d4ed8' },
+        LOGOUT: { bg: '#f1f5f9', color: '#475569' },
     };
-    const { cls, label } = cfg[accion] ?? { cls: 'bg-light text-dark', label: accion };
-    return <span className={`badge ${cls}`}>{label}</span>;
+    const { bg, color } = cfg[accion] ?? { bg: '#f1f5f9', color: '#475569' };
+    return <span style={{ background: bg, color, borderRadius: 20, padding: '0.18rem 0.6rem', fontSize: '0.73rem', fontWeight: 700 }}>{accion}</span>;
+}
+
+function TR({ children, style, ...rest }) {
+    const [hov, setHov] = useState(false);
+    return (
+        <tr {...rest} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+            style={{ ...style, background: hov ? '#eff6ff' : (style?.background ?? 'transparent'), transition: 'background 0.12s' }}>
+            {children}
+        </tr>
+    );
 }
 
 const FILTROS_VACIOS = { accion: '', tabla_afectada: '', fecha_desde: '', fecha_hasta: '' };
 
+/**
+ * CU14 - ADMINISTRAR BITÁCORA
+ * FLUJO 1 - Consulta del Administrador:
+ * Mensaje 1: consultarHistorial() → useEffect al cargar
+ * Mensaje 1.1: procesarConsulta() → GET /api/bitacora
+ * Mensaje 1.4: mostrarHistorial() → render tabla registros
+ */
 export default function Bitacora({ onBack }) {
     const [registros, setRegistros]   = useState([]);
     const [loading, setLoading]       = useState(true);
-    const [stats, setStats]           = useState({
-        total_registros: 0, registros_hoy: 0,
-        acciones_por_tipo: {}, tablas_mas_afectadas: [],
-    });
+    const [stats, setStats]           = useState({ total_registros: 0, registros_hoy: 0, acciones_por_tipo: {}, tablas_mas_afectadas: [] });
     const [filtros, setFiltros]       = useState(FILTROS_VACIOS);
     const [filtrosAplicados, setFiltrosAplicados] = useState(false);
     const [error, setError]           = useState('');
 
-    useEffect(() => {
-        cargarStats();
-        cargar();
-    }, []);
+    useEffect(() => { cargarStats(); cargar(); }, []);
 
     async function cargarStats() {
-        try {
-            const res  = await fetch('/api/bitacora/estadisticas');
-            const data = await res.json();
-            setStats(data);
-        } catch { /* silent */ }
+        try { const res = await fetch('/api/bitacora/estadisticas'); setStats(await res.json()); } catch {}
     }
 
     async function cargar() {
-        setLoading(true);
-        setError('');
-        try {
-            const res  = await fetch('/api/bitacora');
-            const data = await res.json();
-            setRegistros(data);
-        } catch {
-            setError('Error al cargar bitácora.');
-        } finally {
-            setLoading(false);
-        }
+        setLoading(true); setError('');
+        try { const res = await fetch('/api/bitacora'); setRegistros(await res.json()); }
+        catch { setError('Error al cargar bitácora.'); }
+        finally { setLoading(false); }
     }
 
     async function filtrar() {
-        setLoading(true);
-        setError('');
+        setLoading(true); setError('');
         const params = new URLSearchParams();
         Object.entries(filtros).forEach(([k, v]) => { if (v) params.append(k, v); });
-        try {
-            const res  = await fetch(`/api/bitacora/filtrar?${params}`);
-            const data = await res.json();
-            setRegistros(data);
-            setFiltrosAplicados(true);
-        } catch {
-            setError('Error al filtrar.');
-        } finally {
-            setLoading(false);
-        }
+        try { const res = await fetch(`/api/bitacora/filtrar?${params}`); setRegistros(await res.json()); setFiltrosAplicados(true); }
+        catch { setError('Error al filtrar.'); }
+        finally { setLoading(false); }
     }
 
-    function limpiar() {
-        setFiltros(FILTROS_VACIOS);
-        setFiltrosAplicados(false);
-        cargar();
-    }
-
+    function limpiar() { setFiltros(FILTROS_VACIOS); setFiltrosAplicados(false); cargar(); }
     const set = (k, v) => setFiltros(f => ({ ...f, [k]: v }));
 
     function formatFecha(dt) {
@@ -108,109 +76,111 @@ export default function Bitacora({ onBack }) {
     }
 
     const exportarCSV = () => {
-        const cab  = ['#', 'Usuario', 'Rol', 'Acción', 'Tabla', 'Descripción', 'Fecha/Hora', 'IP'];
-        const filas = registros.map((r, i) => [
-            i + 1, r.username ?? 'Sistema', r.rol ?? '—',
-            r.accion, r.tabla_afectada ?? '—', r.descripcion,
-            formatFecha(r.fecha_hora), r.direccion_ip ?? '—',
-        ]);
+        const cab  = ['#','Usuario','Rol','Acción','Tabla','Descripción','Fecha/Hora','IP'];
+        const filas = registros.map((r, i) => [i + 1, r.username ?? 'Sistema', r.rol ?? '—', r.accion, r.tabla_afectada ?? '—', r.descripcion, formatFecha(r.fecha_hora), r.direccion_ip ?? '—']);
         const csv  = [cab, ...filas].map(f => f.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-        const a    = document.createElement('a');
-        a.href = URL.createObjectURL(blob); a.download = 'bitacora.csv'; a.click();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })); a.download = 'bitacora.csv'; a.click();
         URL.revokeObjectURL(a.href);
     };
 
     const exportarPDF = () => {
-        const doc   = new jsPDF('landscape');
+        const doc = new jsPDF('landscape');
         const fecha = new Date().toLocaleDateString('es-BO');
-        doc.setFontSize(14); doc.setTextColor(13, 110, 253);
-        doc.text('CUP-FICCT - Bitácora del Sistema', 14, 15);
-        doc.setFontSize(9);  doc.setTextColor(100);
-        doc.text(`${registros.length} registros | Generado: ${fecha}`, 14, 22);
+        doc.setFontSize(14); doc.setTextColor(26, 58, 107); doc.text('CUP-FICCT - Bitácora del Sistema', 14, 15);
+        doc.setFontSize(9); doc.setTextColor(100); doc.text(`${registros.length} registros | Generado: ${fecha}`, 14, 22);
         autoTable(doc, {
             startY: 27,
-            head: [['#', 'Usuario', 'Acción', 'Tabla', 'Descripción', 'Fecha/Hora', 'IP']],
-            body: registros.map((r, i) => [
-                i + 1, r.username ?? 'Sistema',
-                r.accion, r.tabla_afectada ?? '—',
-                r.descripcion?.slice(0, 50),
-                formatFecha(r.fecha_hora), r.direccion_ip ?? '—',
-            ]),
-            headStyles:  { fillColor: [13, 110, 253], fontSize: 7 },
-            bodyStyles:  { fontSize: 7 },
+            head: [['#','Usuario','Acción','Tabla','Descripción','Fecha/Hora','IP']],
+            body: registros.map((r, i) => [i + 1, r.username ?? 'Sistema', r.accion, r.tabla_afectada ?? '—', r.descripcion?.slice(0, 50), formatFecha(r.fecha_hora), r.direccion_ip ?? '—']),
+            headStyles: { fillColor: [26, 58, 107], fontSize: 7 },
+            bodyStyles: { fontSize: 7 },
             columnStyles: { 4: { cellWidth: 60 } },
         });
         doc.save('bitacora.pdf');
     };
 
     const { total_registros, registros_hoy, acciones_por_tipo } = stats;
-    const inserciones   = (acciones_por_tipo?.INSERT ?? 0);
+    const inserciones    = (acciones_por_tipo?.INSERT ?? 0);
     const modificaciones = (acciones_por_tipo?.UPDATE ?? 0) + (acciones_por_tipo?.DELETE ?? 0);
 
+    const thStyle = { backgroundColor: '#1a3a6b', color: '#ffffff', padding: '12px 16px', fontWeight: '600', fontSize: '13px', letterSpacing: '0.5px', borderBottom: '2px solid #2563eb', whiteSpace: 'nowrap' };
+    const tdStyle = { padding: '0.6rem 0.9rem', fontSize: '0.82rem', verticalAlign: 'middle' };
+
     return (
-        <div>
-            <nav className="navbar navbar-dark bg-primary px-4">
-                <span className="navbar-brand fw-bold">CUP - FICCT &mdash; Bitácora</span>
-                <button className="btn btn-outline-light btn-sm" onClick={onBack}>&larr; Volver al Dashboard</button>
+        <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "'Segoe UI',system-ui,sans-serif" }}>
+
+            {/* ── Navbar ── */}
+            <nav style={{ background: 'linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%)', padding: '0 1.5rem', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 10px rgba(26,58,107,0.3)', position: 'sticky', top: 0, zIndex: 100 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: '1.4rem' }}>🗂️</span>
+                    <div>
+                        <div style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', lineHeight: 1.2 }}>CUP - FICCT — Bitácora</div>
+                        <div className="d-none d-sm-block" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.68rem' }}>Sistema de Admisión Universitaria</div>
+                    </div>
+                </div>
+                <button onClick={onBack} style={{ background: 'transparent', border: '1.5px solid rgba(255,255,255,0.45)', color: '#fff', borderRadius: 7, padding: '0.35rem 0.75rem', cursor: 'pointer', fontSize: '0.82rem' }}>
+                    <span className="d-none d-sm-inline">← Volver al Dashboard</span>
+                    <span className="d-sm-none">←</span>
+                </button>
             </nav>
 
-            <div className="container-fluid p-4">
-                <h4 className="mb-4">Historial de Auditoría del Sistema</h4>
+            <div className="container-fluid px-3 px-md-4" style={{ paddingTop: '1.75rem', paddingBottom: '1.75rem' }}>
+                <h5 style={{ fontWeight: 700, color: '#1a3a6b', marginBottom: '1.25rem' }}>Historial de Auditoría del Sistema</h5>
 
-                {/* Estadísticas */}
+                {/* ── Stats ── */}
                 <div className="row g-3 mb-4">
                     {[
-                        { label: 'Total Registros',      val: total_registros, color: '#0d6efd' },
-                        { label: 'Registros Hoy',        val: registros_hoy,   color: '#198754' },
-                        { label: 'Inserciones',          val: inserciones,     color: '#6f42c1' },
-                        { label: 'Modif. / Eliminaciones', val: modificaciones, color: '#fd7e14' },
-                    ].map(({ label, val, color }) => (
-                        <div key={label} className="col-md-3">
-                            <div className="card text-white h-100" style={{ backgroundColor: color }}>
-                                <div className="card-body">
-                                    <h6 className="card-title">{label}</h6>
-                                    <h2 className="fw-bold">{val}</h2>
-                                </div>
+                        { label: 'Total Registros',        val: total_registros, grad: 'linear-gradient(135deg,#1a3a6b,#2563eb)', icon: '📊' },
+                        { label: 'Registros Hoy',          val: registros_hoy,   grad: 'linear-gradient(135deg,#15803d,#16a34a)', icon: '📅' },
+                        { label: 'Inserciones',            val: inserciones,     grad: 'linear-gradient(135deg,#6d28d9,#7c3aed)', icon: '➕' },
+                        { label: 'Modif. / Eliminaciones', val: modificaciones,  grad: 'linear-gradient(135deg,#d97706,#f59e0b)', icon: '✏️' },
+                    ].map(({ label, val, grad, icon }) => (
+                        <div className="col-md-3 col-sm-6" key={label}>
+                            <div style={{ background: grad, borderRadius: 14, padding: '1.25rem 1.5rem', color: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', position: 'relative', overflow: 'hidden' }}>
+                                <div style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', fontSize: '2.6rem', opacity: 0.2 }}>{icon}</div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 500, opacity: 0.9 }}>{label}</div>
+                                <div style={{ fontSize: '2.4rem', fontWeight: 800, lineHeight: 1.1, marginTop: '0.25rem' }}>{val}</div>
                             </div>
                         </div>
                     ))}
                 </div>
 
-                {error && <div className="alert alert-danger py-2 small">{error}</div>}
+                {error && <div className="alert alert-danger py-2 small mb-3" style={{ borderRadius: 8 }}>{error}</div>}
 
-                {/* Filtros */}
-                <div className="card shadow-sm mb-4">
-                    <div className="card-header bg-secondary text-white py-2">
-                        <h6 className="mb-0 fw-bold">Filtros</h6>
+                {/* ── Filters ── */}
+                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8edf5', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: '1.25rem', overflow: 'hidden' }}>
+                    <div style={{ background: 'linear-gradient(90deg,#475569,#64748b)', padding: '0.7rem 1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: '1rem' }}>🔎</span>
+                        <h6 style={{ color: '#fff', fontWeight: 700, margin: 0, fontSize: '0.9rem' }}>Filtros</h6>
                     </div>
-                    <div className="card-body">
+                    <div style={{ padding: '1rem 1.25rem' }}>
                         <div className="row g-2 align-items-end">
                             <div className="col-md-2">
-                                <label className="form-label small fw-semibold">Acción</label>
-                                <select className="form-select form-select-sm" value={filtros.accion} onChange={e => set('accion', e.target.value)}>
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: '0.25rem' }}>Acción</label>
+                                <select className="form-select form-select-sm" style={{ borderRadius: 7, borderColor: '#e2e8f0' }} value={filtros.accion} onChange={e => set('accion', e.target.value)}>
                                     <option value="">Todos</option>
                                     {ACCIONES.map(a => <option key={a} value={a}>{a}</option>)}
                                 </select>
                             </div>
                             <div className="col-md-2">
-                                <label className="form-label small fw-semibold">Tabla</label>
-                                <select className="form-select form-select-sm" value={filtros.tabla_afectada} onChange={e => set('tabla_afectada', e.target.value)}>
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: '0.25rem' }}>Tabla</label>
+                                <select className="form-select form-select-sm" style={{ borderRadius: 7, borderColor: '#e2e8f0' }} value={filtros.tabla_afectada} onChange={e => set('tabla_afectada', e.target.value)}>
                                     <option value="">Todas</option>
                                     {TABLAS.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
                             </div>
                             <div className="col-md-2">
-                                <label className="form-label small fw-semibold">Fecha desde</label>
-                                <input type="date" className="form-control form-control-sm" value={filtros.fecha_desde} onChange={e => set('fecha_desde', e.target.value)} />
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: '0.25rem' }}>Fecha desde</label>
+                                <input type="date" className="form-control form-control-sm" style={{ borderRadius: 7, borderColor: '#e2e8f0' }} value={filtros.fecha_desde} onChange={e => set('fecha_desde', e.target.value)} />
                             </div>
                             <div className="col-md-2">
-                                <label className="form-label small fw-semibold">Fecha hasta</label>
-                                <input type="date" className="form-control form-control-sm" value={filtros.fecha_hasta} onChange={e => set('fecha_hasta', e.target.value)} />
+                                <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: '0.25rem' }}>Fecha hasta</label>
+                                <input type="date" className="form-control form-control-sm" style={{ borderRadius: 7, borderColor: '#e2e8f0' }} value={filtros.fecha_hasta} onChange={e => set('fecha_hasta', e.target.value)} />
                             </div>
                             <div className="col-md-4 d-flex gap-2">
-                                <button className="btn btn-primary btn-sm" onClick={filtrar}>Filtrar</button>
-                                <button className="btn btn-outline-secondary btn-sm" onClick={limpiar} disabled={!filtrosAplicados}>
+                                <button style={{ background: 'linear-gradient(90deg,#1a3a6b,#2563eb)', color: '#fff', border: 'none', borderRadius: 7, padding: '0.4rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }} onClick={filtrar}>Filtrar</button>
+                                <button style={{ background: 'transparent', border: '1.5px solid #94a3b8', color: '#64748b', borderRadius: 7, padding: '0.4rem 0.9rem', cursor: filtrosAplicados ? 'pointer' : 'not-allowed', fontSize: '0.85rem' }} onClick={limpiar} disabled={!filtrosAplicados}>
                                     Limpiar filtros
                                 </button>
                             </div>
@@ -218,64 +188,56 @@ export default function Bitacora({ onBack }) {
                     </div>
                 </div>
 
-                {/* Tabla */}
-                <div className="card shadow-sm">
-                    <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                {/* ── Records table ── */}
+                <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8edf5', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                    <div style={{ background: '#1a3a6b', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
-                            <strong>Registros</strong>
-                            <span className="text-secondary ms-2 small fw-normal">
+                            <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.92rem' }}>Registros</span>
+                            <span style={{ color: 'rgba(255,255,255,0.55)', marginLeft: 8, fontSize: '0.78rem' }}>
                                 Mostrando {registros.length} registro{registros.length !== 1 ? 's' : ''}
-                                {filtrosAplicados && <span className="ms-1 text-warning">(filtrados)</span>}
+                                {filtrosAplicados && <span style={{ color: '#f59e0b', marginLeft: 4 }}>(filtrados)</span>}
                             </span>
                         </div>
-                        <div className="d-flex gap-2">
-                            <button className="btn btn-success btn-sm" onClick={exportarCSV} disabled={!registros.length}>⬇ CSV</button>
-                            <button className="btn btn-danger  btn-sm" onClick={exportarPDF} disabled={!registros.length}>⬇ PDF</button>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: 7, padding: '0.3rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }} onClick={exportarCSV} disabled={!registros.length}>⬇ CSV</button>
+                            <button style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: 7, padding: '0.3rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }} onClick={exportarPDF} disabled={!registros.length}>⬇ PDF</button>
                         </div>
                     </div>
 
                     {loading ? (
-                        <div className="text-center py-5"><div className="spinner-border text-primary" /></div>
+                        <div style={{ textAlign: 'center', padding: '4rem' }}><div className="spinner-border text-primary" /></div>
                     ) : (
                         <div className="table-responsive">
-                            <table className="table table-hover table-sm mb-0">
-                                <thead className="table-secondary">
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Usuario</th>
-                                        <th>Rol</th>
-                                        <th>Acción</th>
-                                        <th>Tabla Afectada</th>
-                                        <th>Descripción</th>
-                                        <th>Fecha y Hora</th>
-                                        <th>IP</th>
+                            <table className="table table-sm mb-0" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+                                <thead>
+                                    <tr style={{ background: '#1a3a6b' }}>
+                                        {['#','Usuario','Rol','Acción','Tabla Afectada','Descripción','Fecha y Hora','IP'].map(h => (
+                                            <th key={h} style={thStyle}>{h}</th>
+                                        ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {registros.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={8} className="text-center text-muted py-4">
-                                                No hay registros en la bitácora.
-                                            </td>
-                                        </tr>
+                                        <tr><td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                                            <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>🗂️</div>
+                                            No hay registros en la bitácora.
+                                        </td></tr>
                                     ) : registros.map((r, i) => (
-                                        <tr key={r.id}>
-                                            <td className="text-muted small">{i + 1}</td>
-                                            <td className="fw-semibold small">{r.username ?? <span className="text-muted">Sistema</span>}</td>
-                                            <td className="small text-muted">{r.rol ?? '—'}</td>
-                                            <td><AccionBadge accion={r.accion} /></td>
-                                            <td className="small">
+                                        <TR key={r.id} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                            <td style={{ ...tdStyle, color: '#94a3b8', fontSize: '0.75rem' }}>{i + 1}</td>
+                                            <td style={{ ...tdStyle, fontWeight: 600 }}>{r.username ?? <span style={{ color: '#94a3b8' }}>Sistema</span>}</td>
+                                            <td style={{ ...tdStyle, color: '#64748b' }}>{r.rol ?? '—'}</td>
+                                            <td style={tdStyle}><AccionBadge accion={r.accion} /></td>
+                                            <td style={tdStyle}>
                                                 {r.tabla_afectada
-                                                    ? <code className="bg-light px-1 rounded">{r.tabla_afectada}</code>
-                                                    : <span className="text-muted">—</span>
+                                                    ? <code style={{ background: '#f1f5f9', padding: '0.1rem 0.4rem', borderRadius: 4, fontSize: '0.75rem', color: '#1e293b' }}>{r.tabla_afectada}</code>
+                                                    : <span style={{ color: '#94a3b8' }}>—</span>
                                                 }
                                             </td>
-                                            <td className="small" style={{ maxWidth: 320 }}>{r.descripcion}</td>
-                                            <td className="small text-muted" style={{ whiteSpace: 'nowrap' }}>
-                                                {formatFecha(r.fecha_hora)}
-                                            </td>
-                                            <td className="small text-muted">{r.direccion_ip ?? '—'}</td>
-                                        </tr>
+                                            <td style={{ ...tdStyle, maxWidth: 320 }}>{r.descripcion}</td>
+                                            <td style={{ ...tdStyle, color: '#64748b', whiteSpace: 'nowrap', fontSize: '0.76rem' }}>{formatFecha(r.fecha_hora)}</td>
+                                            <td style={{ ...tdStyle, color: '#94a3b8', fontSize: '0.76rem' }}>{r.direccion_ip ?? '—'}</td>
+                                        </TR>
                                     ))}
                                 </tbody>
                             </table>

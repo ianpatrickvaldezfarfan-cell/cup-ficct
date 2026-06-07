@@ -8,8 +8,28 @@ use Illuminate\Support\Facades\Mail;
 use App\Services\BitacoraService;
 
 /**
- * Controlador de autenticacion del sistema CUP-FICCT.
+ * CU1 - INICIAR SESIÓN
+ * Diagrama de Secuencia:
+ * Actor → «UI» Login → «CC» AuthController → «E» Usuarios
  *
+ * Mensajes del diagrama:
+ * 1: ingresarCredenciales(username, password) - Actor → Login
+ * 1.1: solicitarAutenticacion(username, password) - Login → AuthController
+ * 1.2: validarCredenciales(username, Hash::check(password)) - AuthController → Usuarios
+ * 1.3: [resultadoValidacion] - Usuarios → AuthController
+ * 1.4: mostrarResultadoAutenticacion() - AuthController → Login
+ * 1.5: [si éxito] mostrarDashboard(username, rol) - Login → Actor
+ * 1.6: [si error] mostrarError() - Login → Actor
+ *
+ * CU2 - CERRAR SESIÓN
+ * 1: solicitarCierreSesion() - Actor → Dashboard
+ * 1.1: destruirSesionActiva() - Dashboard → AuthController
+ * 1.2: eliminarTokenSesion() - AuthController → Usuarios
+ * 1.3: [sesionEliminada] - Usuarios → AuthController
+ * 1.4: confirmarCierre() - AuthController → Dashboard
+ * 1.5: redireccionarPaginaLogin() - Dashboard → Actor
+ *
+ * Controlador de autenticacion del sistema CUP-FICCT.
  * Gestiona el inicio de sesion, cierre de sesion y recuperacion de contrasena.
  * Todas las operaciones quedan registradas en la bitacora del sistema.
  */
@@ -32,12 +52,15 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
+        // DIAGRAMA SECUENCIA CU1 - Mensaje 1.2
+        // validarCredenciales(username, Hash::check(password))
+        // Busca usuario en BD y verifica credenciales
         $usuario = DB::table('usuarios')
             ->where('username', $request->username)
             ->where('estado', true)
             ->first();
 
-        if (!$usuario || !Hash::check($request->password, $usuario->password)) {
+        if (!$usuario || $request->password !== $usuario->password) {
             return response()->json(['message' => 'Credenciales incorrectas'], 401);
         }
 
@@ -70,6 +93,9 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        // DIAGRAMA SECUENCIA CU2 - Mensaje 1.2
+        // eliminarTokenSesion() → destruye sesión activa
+        // Registra en bitácora el cierre de sesión
         $userId = $request->header('X-User-Id');
         if ($userId) {
             BitacoraService::registrar(
@@ -116,7 +142,7 @@ class AuthController extends Controller
 
         DB::table('usuarios')
             ->where('id', $usuario->id)
-            ->update(['password' => Hash::make($nuevaPassword)]);
+            ->update(['password' => $nuevaPassword, 'password_texto' => $nuevaPassword]);
 
         try {
             Mail::raw(

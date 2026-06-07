@@ -5,8 +5,27 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Controlador del modulo de Bitacora (CU14 - Administrar Bitacora).
+ * CU14 - ADMINISTRAR BITÁCORA
+ * Diagrama de Secuencia - FLUJO 1 (Administrador consulta):
+ * Administrador → «UI» PanelBitacora → «CC» BitacoraController → «E» BDBitacora
  *
+ * Mensajes del diagrama:
+ * 1: consultarHistorial(filtros: usuario, fecha, accion, tabla_afectada)
+ * 1.1: procesarConsulta(filtros)
+ * 1.2: buscarRegistros(usuario_id, accion, tabla_afectada, fecha_hora)
+ * 1.3: [listaRegistrosBitacora]
+ * 1.4: mostrarHistorial(usuario, accion, tabla_afectada,
+ *      descripcion, fecha_hora, direccion_ip)
+ *
+ * Diagrama de Secuencia - FLUJO 2 (Sistema registra automático):
+ * Sistema → «S» ServicioBitacora → «E» BDBitacora
+ *
+ * 2: eventoSistema(INSERT/UPDATE/DELETE)
+ * 2.1: insertarRegistro(usuario_id, accion, tabla_afectada,
+ *      descripcion, fecha_hora, direccion_ip)
+ * 2.2: [registroGuardado]
+ *
+ * Controlador del modulo de Bitacora (CU14 - Administrar Bitacora).
  * Expone endpoints para consultar el historial de auditoria del sistema.
  * Los registros son creados automaticamente por BitacoraService desde
  * los demas controladores; este controlador solo los muestra y filtra.

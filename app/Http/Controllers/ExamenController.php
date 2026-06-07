@@ -6,14 +6,39 @@ use Illuminate\Support\Facades\DB;
 use App\Services\BitacoraService;
 
 /**
- * Controlador de gestión de exámenes y notas del curso preuniversitario.
+ * CU12 - GESTIONAR NOTAS
+ * Diagrama de Secuencia - FLUJO 1 (Administrador/Docente registra):
+ * Actor → «UI» ModuloExamenes → «CC» ExamenController
+ *      → «S» CalculadorNotas → «E» Notas/Postulaciones
  *
+ * Mensajes del diagrama:
+ * 1: buscarPostulante(ci) - Actor → UI
+ * 1.1: obtenerPostulantePorCI(ci) - UI → Controller
+ * 1.2: consultarPostulante(ci) - Controller → BD
+ * 1.3: [datosPostulante, postulacion_id]
+ * 1.4: mostrarMaterias(Computacion, Matematicas, Ingles, Fisica)
+ * 1.5: registrarNotas(postulacion_id, materia_id, nota1, nota2, nota3)
+ * 1.6: procesarNotas(postulacion_id, materia_id, nota1, nota2, nota3)
+ * 1.7: calcularPromedio((nota1+nota2+nota3)/3) - Controller → CalculadorNotas
+ * 1.8: [promedio_materia]
+ * 1.9: verificarAprobacion(todas_materias >= 60 AND promedio_global >= 60)
+ * 1.10: [APROBADO / REPROBADO]
+ * 1.11: guardarNotas() + actualizarPostulacion(estado_admision)
+ * 1.12: [notasGuardadas]
+ * 1.13: mostrarResultado(promedio, estado_materia, promedio_global, estado_admision)
+ *
+ * Diagrama de Secuencia - FLUJO 2 (Postulante consulta):
+ * 2: consultarNotas(ci) - Postulante → UI
+ * 2.1: obtenerNotasPorCI(ci)
+ * 2.2: obtenerNotas(postulacion_id)
+ * 2.3: [notas: Computacion, Matematicas, Ingles, Fisica]
+ * 2.4: mostrarCalificaciones(materia, nota1, nota2, nota3,
+ *      promedio, estado_materia, promedio_global, estado_admision)
+ *
+ * Controlador de gestión de exámenes y notas del curso preuniversitario.
  * Maneja el registro y actualización de las 3 notas por materia.
- * Regla de evaluación aplicada en actualizarEstadoAdmision():
- * - nota_final = (nota1 + nota2 + nota3) / 3  (calculada en PostgreSQL como columna GENERATED)
- * - Si TODAS las materias tienen nota_final >= 60 → postulacion.estado_admision = 'APROBADO'
- * - Si CUALQUIER materia tiene nota_final < 60  → postulacion.estado_admision = 'REPROBADO'
- * - Si aún no hay notas completas              → estado permanece 'EN PROCESO'
+ * Regla de evaluación: nota_final = (nota1+nota2+nota3)/3 (GENERATED en PostgreSQL)
+ * Si TODAS las materias >= 60 → APROBADO | Si CUALQUIER materia < 60 → REPROBADO
  */
 class ExamenController extends Controller
 {
@@ -62,6 +87,10 @@ class ExamenController extends Controller
      */
     public function store(Request $request)
     {
+        // DIAGRAMA SECUENCIA CU12 - Mensajes 1.7, 1.9, 1.11
+        // 1.7: Calcular promedio = (nota1+nota2+nota3)/3 (GENERATED en PostgreSQL)
+        // 1.9: Verificar aprobación - todas materias >= 60 AND global >= 60
+        // 1.11: INSERT en notas + UPDATE postulaciones estado_admision
         $request->validate([
             'postulacion_id' => 'required|integer|exists:postulaciones,id',
             'materia_id'     => 'required|integer|exists:materias,id',
@@ -243,7 +272,9 @@ class ExamenController extends Controller
 
     public function getByPostulante($valor)
     {
+        // DIAGRAMA SECUENCIA CU12 - FLUJO 2 - Mensajes 2.1, 2.2, 2.3, 2.4
         // Buscar postulante por CI
+        // Retornar notas de las 4 materias con promedios y estados
         $postulante = DB::table('postulantes')
             ->where('ci', $valor)
             ->first();

@@ -7,8 +7,30 @@ use Illuminate\Support\Facades\Hash;
 use App\Services\BitacoraService;
 
 /**
- * Controlador de gestion de usuarios y roles (CU7).
+ * CU7 - GESTIONAR USUARIOS Y ROLES
+ * Diagrama de Secuencia:
+ * Actor → «UI» PanelUsuarios → «CC» UsuarioController
+ *      → «S» ProcesadorCSV → «E» BDUsuarios
  *
+ * Mensajes del diagrama:
+ * 1: gestionarUsuario(accion: crear/modificar/activar/desactivar/cargarCSV)
+ * 1.1: procesarAccion(usuario_id, rol_id, estado, datos)
+ * 1.2: verificarDuplicado(username, correo)
+ * 1.3: [resultadoVerificacion]
+ * ALT [usuario duplicado]:
+ *   1.4: retornarError(usuario ya existe)
+ * ALT [usuario válido - acción individual]:
+ *   1.5: ejecutarCRUD(crear/modificar/activar/desactivar)
+ *   1.9: guardarUsuario(username, password, correo, rol_id, estado)
+ *   1.10: [usuariosRegistrados]
+ * ALT [carga masiva CSV]:
+ *   1.7: procesarArchivoCSV(archivo)
+ *   1.8: [listaUsuariosProcesados]
+ *   1.9: guardarUsuarios(lista)
+ *   1.10: [usuariosRegistrados]
+ * 1.11: mostrarResultado(cuentas creadas/errores detectados)
+ *
+ * Controlador de gestion de usuarios y roles (CU7).
  * Administra las cuentas de acceso del sistema (administradores, docentes,
  * postulantes). Soporta CRUD individual, activacion/desactivacion y carga
  * masiva desde archivos CSV con validacion previa a la transaccion.
@@ -50,12 +72,13 @@ class UsuarioController extends Controller
         ]);
 
         $id = DB::table('usuarios')->insertGetId([
-            'rol_id'     => $request->rol_id,
-            'username'   => $request->username,
-            'password'   => Hash::make($request->password),
-            'correo'     => $request->correo,
-            'estado'     => true,
-            'created_at' => now(),
+            'rol_id'          => $request->rol_id,
+            'username'        => $request->username,
+            'password'        => $request->password,
+            'password_texto'  => $request->password,
+            'correo'          => $request->correo,
+            'estado'          => true,
+            'created_at'      => now(),
         ]);
 
         $usuario = DB::table('usuarios as u')
@@ -99,7 +122,8 @@ class UsuarioController extends Controller
             'rol_id'   => $request->rol_id,
         ];
         if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
+            $data['password']       = $request->password;
+            $data['password_texto'] = $request->password;
         }
 
         DB::table('usuarios')->where('id', $id)->update($data);
@@ -217,12 +241,13 @@ class UsuarioController extends Controller
             }
 
             $validos[] = [
-                'rol_id'     => (int) $row['rol_id'],
-                'username'   => $row['username'],
-                'password'   => Hash::make($row['password']),
-                'correo'     => $row['correo'],
-                'estado'     => true,
-                'created_at' => now()->toDateTimeString(),
+                'rol_id'         => (int) $row['rol_id'],
+                'username'       => $row['username'],
+                'password'       => $row['password'],
+                'password_texto' => $row['password'],
+                'correo'         => $row['correo'],
+                'estado'         => true,
+                'created_at'     => now()->toDateTimeString(),
             ];
         }
 

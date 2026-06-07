@@ -1,8 +1,11 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import PanelDocente from './components/PanelDocente';
+import PanelPostulante from './components/PanelPostulante';
 import Postulantes from './components/Postulantes';
 import Examenes from './components/Examenes';
 import Grupos from './components/Grupos';
@@ -19,9 +22,9 @@ function App() {
     const [user, setUser] = useState(null);
     const [modulo, setModulo] = useState('dashboard');
 
-    // Flujo de registro público: login | registro | documentos | pago | exito
-    const [vista, setVista] = useState('login');
-    const [datosFlujo, setDatosFlujo]   = useState(null); // {postulacion_id, nombres, apellidos, monto}
+    // Flujo de registro público: landing | login | registro | documentos | pago | exito
+    const [vista, setVista] = useState('landing');
+    const [datosFlujo, setDatosFlujo]     = useState(null);
     const [credenciales, setCredenciales] = useState(null);
 
     const handleLogout = async () => {
@@ -30,12 +33,14 @@ function App() {
                 method: 'POST',
                 headers: { 'Accept': 'application/json', 'X-User-Id': user?.id ?? '' },
             });
-        } catch { /* silent — no interrumpir el logout local */ }
-        setUser(null); setModulo('dashboard'); setVista('login');
+        } catch { /* silent */ }
+        setUser(null); setModulo('dashboard'); setVista('landing');
     };
 
     // Usuario autenticado → app principal
     if (user) {
+        if (user.rol === 'docente')     return <PanelDocente    user={user} onLogout={handleLogout} />;
+        if (user.rol === 'postulante') return <PanelPostulante user={user} onLogout={handleLogout} />;
         if (modulo === 'postulantes')   return <Postulantes   user={user} onBack={() => setModulo('dashboard')} />;
         if (modulo === 'examenes')      return <Examenes      user={user} onBack={() => setModulo('dashboard')} />;
         if (modulo === 'grupos')        return <Grupos        user={user} onBack={() => setModulo('dashboard')} />;
@@ -44,6 +49,16 @@ function App() {
         if (modulo === 'usuarios')      return <Usuarios      user={user} onBack={() => setModulo('dashboard')} />;
         if (modulo === 'bitacora')      return <Bitacora                  onBack={() => setModulo('dashboard')} />;
         return <Dashboard user={user} onLogout={handleLogout} onModulo={setModulo} />;
+    }
+
+    // Landing page pública
+    if (vista === 'landing') {
+        return (
+            <LandingPage
+                onLogin={() => setVista('login')}
+                onRegistro={() => setVista('registro')}
+            />
+        );
     }
 
     // Paso 1 — Datos personales
@@ -56,7 +71,7 @@ function App() {
         );
     }
 
-    // Paso 2 — Subida de documentos (NUEVO)
+    // Paso 2 — Subida de documentos
     if (vista === 'documentos') {
         return (
             <SubirDocumentos
@@ -88,6 +103,7 @@ function App() {
         );
     }
 
+    // Login
     return (
         <Login
             onLogin={setUser}

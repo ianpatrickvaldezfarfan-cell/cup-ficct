@@ -6,15 +6,33 @@ use Illuminate\Support\Facades\DB;
 use App\Services\BitacoraService;
 
 /**
- * Controlador de generación y consulta de grupos de estudio.
+ * CU10 - GESTIONAR GRUPOS
+ * Diagrama de Secuencia:
+ * Actor → «UI» ModuloGrupos → «CC» GrupoController
+ *      → «S» AlgoritmoDistribucion → «E» BDGrupos
  *
+ * Mensajes del diagrama:
+ * 1: solicitarGeneracionGrupos(gestion: 2026)
+ * 1.1: procesarGeneracion(gestion)
+ * 1.2: contarTotalInscritos(gestion: 2026)
+ * 1.3: [totalInscritos: 1001]
+ * 1.4: calcularCantidadGrupos(CEIL(1001/70) = 15)
+ * 1.5: [cantidadGrupos: 15]
+ * 1.6: distribuirPostulantes(postulantes, grupos: 15,
+ *      maxPorGrupo: 70, metodo: round-robin)
+ * 1.7: [gruposConPostulantes: ~67 estudiantes c/u]
+ * 1.8: asignarAulaYHorario(grupo_id, aula_id, horario_id,
+ *      turno: manana/tarde/noche)
+ * 1.9: [asignacionConfirmada]
+ * 1.10: guardarGrupos() + guardarGrupoPostulantes()
+ * 1.11: [gruposGuardados]
+ * 1.12: mostrarResumen(totalInscritos: 1001,
+ *       gruposHabilitados: 15, estudiantesPorGrupo: ~67)
+ *
+ * Controlador de generación y consulta de grupos de estudio.
  * Implementa la distribución automática de postulantes en grupos.
  * Fórmula: cantidadGrupos = CEIL(totalInscritos / 70) — máximo 70 por grupo.
- * La asignación de aulas y horarios usa bloques de turno:
- *   turno 0 (mañana):  horarios índices 0-3
- *   turno 1 (tarde):   horarios índices 4-7
- *   turno 2 (noche):   horarios índices 8-11
- * El turno en index() se calcula con CASE WHEN en SQL: <12h=Manana, <18h=Tarde, >=18h=Noche.
+ * Turnos: 0=mañana (horarios 0-3), 1=tarde (4-7), 2=noche (8-11)
  */
 class GrupoController extends Controller
 {
@@ -107,6 +125,10 @@ class GrupoController extends Controller
      */
     public function asignar(Request $request)
     {
+        // DIAGRAMA SECUENCIA CU10 - Mensajes 1.2 al 1.12
+        // 1.4: CEIL(totalInscritos/70) = cantidad de grupos
+        // 1.6: Distribución round-robin equitativa
+        // 1.8: Asignación de aula y horario por turno
         $gestion = $request->input('gestion', date('Y'));
 
         // Obtener todas las postulaciones de la gestión

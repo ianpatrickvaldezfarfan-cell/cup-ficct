@@ -92,7 +92,23 @@ Route::get("/docentes",               [DocenteController::class, "index"]);
 Route::post("/docentes",              [DocenteController::class, "store"]);
 Route::get("/docentes/search",        [DocenteController::class, "search"]);
 Route::get("/docentes/estadisticas",  [DocenteController::class, "estadisticas"]);
-Route::get("/docentes/asignaciones",  [DocenteController::class, "asignaciones"]);
-Route::get("/docentes/{id}",          [DocenteController::class, "show"]);
-Route::put("/docentes/{id}",          [DocenteController::class, "update"]);
-Route::delete("/docentes/{id}",       [DocenteController::class, "destroy"]);
+Route::get("/docentes/asignaciones",      [DocenteController::class, "asignaciones"]);
+Route::get("/docentes/mis-grupos",        [DocenteController::class, "misGrupos"]);
+Route::get("/docentes/mis-estadisticas",  [DocenteController::class, "misEstadisticas"]);
+Route::post("/docentes/asignar-automatico", [DocenteController::class, "asignarAutomatico"]);
+Route::get("/docentes/{id}",              [DocenteController::class, "show"]);
+Route::put("/docentes/{id}",              [DocenteController::class, "update"]);
+Route::delete("/docentes/{id}",           [DocenteController::class, "destroy"]);
+Route::get("/docentes/{id}/asignaciones", [DocenteController::class, "asignacionesByDocente"]);
+
+// ===== PORTAL POSTULANTE =====
+use App\Http\Controllers\PostulantePortalController;
+
+Route::get("/postulante/mi-resumen",     [PostulantePortalController::class, "miResumen"]);
+Route::get("/postulante/mis-datos",      [PostulantePortalController::class, "misDatos"]);
+Route::put("/postulante/mis-datos",      [PostulantePortalController::class, "actualizarDatos"]);
+Route::get("/postulante/mi-postulacion", [PostulantePortalController::class, "miPostulacion"]);
+Route::get("/postulante/mis-documentos", [PostulantePortalController::class, "misDocumentos"]);
+Route::get("/postulante/mi-pago",        [PostulantePortalController::class, "miPago"]);
+Route::get("/postulante/mis-notas",      [PostulantePortalController::class, "misNotas"]);
+Route::get("/postulante/mi-grupo",       [PostulantePortalController::class, "miGrupo"]);

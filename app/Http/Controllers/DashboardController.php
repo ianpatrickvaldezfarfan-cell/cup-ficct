@@ -4,8 +4,31 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Controlador del panel de estadisticas del Dashboard.
+ * CU13 - GENERAR REPORTES Y DASHBOARD
+ * Diagrama de Secuencia - FLUJO 1 (Dashboard tiempo real):
+ * Actor → «UI» PanelDashboard → «CC» DashboardController → «E» BDSistema
  *
+ * Mensajes del diagrama:
+ * 1: solicitarDashboard()
+ * 1.1: cargarIndicadores(gestion: 2026)
+ * 1.2: consultarEstadisticas(totalInscritos, totalAprobados,
+ *      totalReprobados, totalGrupos, gestion)
+ * 1.3: [indicadores: inscritos=1001, aprobados=X, reprobados=X, grupos=15]
+ * 1.4: mostrarDashboard(totalInscritos, totalAprobados,
+ *      totalReprobados, totalGruposHabilitados)
+ *
+ * Diagrama de Secuencia - FLUJO 2 (Generación reportes):
+ * 2: solicitarReporte(tipo: Postulantes/Docentes/Examenes/Grupos,
+ *    formato: pantalla/CSV/PDF)
+ * 2.1: procesarSolicitudReporte(tipo, filtros)
+ * 2.2: consultarDatosReporte(gestion: 2026)
+ * 2.3: [datosReporte]
+ * 2.4: generarReporte(datos, tipo, formato)
+ * 2.5.1: [si formato CSV] generarCSV(datos, BOM: UTF-8)
+ * 2.5.2: [si formato PDF] generarPDF(datos, jsPDF + autotable)
+ * 2.6: mostrarReporte(datos) / descargarArchivo(CSV/PDF)
+ *
+ * Controlador del panel de estadisticas del Dashboard.
  * Provee los datos de resumen de la gestion actual para las tarjetas del
  * panel administrativo: inscritos, aprobados, reprobados y grupos activos.
  */

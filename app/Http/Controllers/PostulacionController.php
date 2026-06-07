@@ -5,12 +5,33 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Controlador de postulaciones (CU4 - Gestionar Postulaciones).
+ * CU4 - GESTIONAR POSTULACIONES
+ * Diagrama de Secuencia:
+ * Actor → «UI» ModuloPostulaciones → «CC» PostulacionController
+ *      → «E» Carreras → «E» Postulaciones
  *
+ * Mensajes del diagrama:
+ * 1: registrarPostulacion(postulante_id, carrera_opcion1_id,
+ *    carrera_opcion2_id, gestion) - Actor → UI
+ * 1.1: procesarPostulacion(datos) - UI → Controller
+ * 1.2: verificarCuposOpcion1(carrera_opcion1_id) - Controller → Carreras
+ * 1.3: [cuposDisponibles/cuposAgotados] - Carreras → Controller
+ * ALT [cupos disponibles en opción 1]:
+ *   1.4: guardarPostulacion(carrera_opcion1, EN PROCESO)
+ *   1.5: [postulacionRegistrada]
+ * ALT [cupos agotados en opción 1]:
+ *   1.4: verificarCuposOpcion2(carrera_opcion2_id)
+ *   1.5: [cuposDisponibles opcion2]
+ *   1.6: guardarPostulacion(carrera_opcion2, EN PROCESO)
+ *   1.7: [postulacionRegistrada]
+ * 1.8: actualizarEstadoAdmision(APROBADO/REPROBADO)
+ * 1.9: [estadoActualizado]
+ * 1.10: mostrarEstadoAdmision() - Controller → UI → Actor
+ *
+ * Controlador de postulaciones (CU4 - Gestionar Postulaciones).
  * Implementa la logica de negocio para registrar postulaciones con verificacion
  * atomica de cupos. Usa lockForUpdate() para evitar condiciones de carrera cuando
  * multiples postulantes intentan inscribirse simultaneamente a la misma carrera.
- *
  * Almacena carrera_asignada_id para saber exactamente cual carrera fue asignada,
  * independientemente de si se uso la opcion 1 o la opcion 2.
  */
@@ -34,6 +55,10 @@ class PostulacionController extends Controller
      */
     private function resolverCarrera(int $opcion1Id, int $opcion2Id): int
     {
+        // DIAGRAMA SECUENCIA CU4 - Mensajes 1.2, 1.3, 1.4, 1.5
+        // lockForUpdate() garantiza verificación atómica de cupos
+        // Si opcion1 tiene cupos → asignar opcion1
+        // Si opcion1 sin cupos → verificar opcion2
         $c1 = DB::table('carreras')->lockForUpdate()->where('id', $opcion1Id)->first();
         if ($c1 && $c1->cupos_disponibles > 0) {
             DB::table('carreras')->where('id', $opcion1Id)->decrement('cupos_disponibles');
