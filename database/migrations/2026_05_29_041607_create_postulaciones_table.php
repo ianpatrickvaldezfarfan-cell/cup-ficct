@@ -6,20 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('postulaciones', function (Blueprint $table) {
             $table->id();
-            $table->timestamps();
+            $table->foreignId('postulante_id')->constrained('postulantes');
+            $table->foreignId('carrera_opcion1_id')->constrained('carreras');
+            $table->foreignId('carrera_opcion2_id')->constrained('carreras');
+            $table->string('gestion', 10);
+            $table->string('estado_admision')->default('EN PROCESO');
+            $table->foreignId('carrera_asignada_id')->nullable()->constrained('carreras');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('postulaciones');

@@ -6,20 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('administrativos', function (Blueprint $table) {
             $table->id();
-            $table->timestamps();
+            $table->foreignId('usuario_id')->constrained('usuarios')->cascadeOnDelete();
+            $table->string('ci', 20)->unique();
+            $table->string('nombres');
+            $table->string('apellidos');
+            $table->string('cargo', 100);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('administrativos');

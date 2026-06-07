@@ -6,22 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('documentos_postulante', function (Blueprint $table) {
+        Schema::create('documentos_postulantes', function (Blueprint $table) {
             $table->id();
-            $table->timestamps();
+            $table->foreignId('postulacion_id')->constrained('postulaciones')->cascadeOnDelete();
+            $table->string('tipo', 50);
+            $table->text('url');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('documentos_postulante');
+        Schema::dropIfExists('documentos_postulantes');
     }
 };

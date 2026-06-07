@@ -6,18 +6,15 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::dropIfExists('bitacora');
         Schema::create('bitacora', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('usuario_id')->nullable();
+            $table->foreignId('usuario_id')->nullable()->constrained('usuarios')->nullOnDelete();
             $table->string('accion', 50);
-            $table->string('tabla_afectada', 100)->nullable();
-            $table->text('descripcion')->nullable();
+            $table->string('tabla_afectada', 50)->nullable();
+            $table->text('descripcion');
             $table->timestamp('fecha_hora')->useCurrent();
             $table->string('direccion_ip', 45)->nullable();
         });

@@ -8,17 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('grupos', function (Blueprint $table) {
+        Schema::create('asignaciones_docentes', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre', 50);
-            $table->string('gestion', 10);
+            $table->foreignId('grupo_id')->constrained('grupos');
+            $table->foreignId('docente_id')->constrained('docentes');
+            $table->foreignId('materia_id')->constrained('materias');
             $table->foreignId('aula_id')->constrained('aulas');
-            $table->foreignId('horario_id')->constrained('horarios');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('grupos');
+        Schema::dropIfExists('asignaciones_docentes');
     }
 };
