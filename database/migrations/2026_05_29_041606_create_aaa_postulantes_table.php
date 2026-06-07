@@ -16,10 +16,10 @@ return new class extends Migration
             $table->string('apellidos');
             $table->date('fecha_nac');
             $table->enum('genero', ['M', 'F', 'O']);
-            $table->string('direccion');
-            $table->string('telefono');
-            $table->string('colegio_procedencia');
-            $table->string('ciudad');
+            $table->string('direccion')->nullable();
+            $table->string('telefono')->nullable();
+            $table->string('colegio_procedencia')->nullable();
+            $table->string('ciudad')->nullable();
             $table->string('correo')->unique();
         });
     }
