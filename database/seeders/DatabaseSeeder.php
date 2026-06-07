@@ -9,46 +9,58 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Roles
-        DB::table('roles')->insert([
-            ['nombre' => 'Administrador'],
-            ['nombre' => 'Docente'],
-            ['nombre' => 'Postulante'],
-        ]);
+        // Desactivar restricciones de FK temporalmente
+        DB::statement('SET session_replication_role = replica;');
 
-        // Facultad
-        DB::table('facultades')->insert([
-            ['nombre' => 'Facultad de Ingeniería en Ciencias de la Computación y Telecomunicaciones', 'sigla' => 'FICCT'],
-        ]);
+        // Leer y ejecutar el SQL de exportación
+        $sql = file_get_contents(database_path('seeders/data_export.sql'));
 
-        // Carreras
-        $facultad_id = DB::table('facultades')->first()->id;
-        DB::table('carreras')->insert([
-            ['facultad_id' => $facultad_id, 'nombre' => 'Ingeniería en Sistemas', 'cupos_disponibles' => 300],
-            ['facultad_id' => $facultad_id, 'nombre' => 'Ingeniería en Telecomunicaciones', 'cupos_disponibles' => 200],
-            ['facultad_id' => $facultad_id, 'nombre' => 'Ingeniería Electrónica', 'cupos_disponibles' => 150],
-            ['facultad_id' => $facultad_id, 'nombre' => 'Licenciatura en Informática', 'cupos_disponibles' => 250],
-        ]);
+        // Filtrar solo las líneas de INSERT (excluir tablas de Laravel)
+        $laravelTables = ['cache', 'cache_locks', 'failed_jobs', 'job_batches',
+                         'jobs', 'migrations', 'password_reset_tokens',
+                         'sessions', 'users'];
 
-        // Usuario admin
-        $rol_admin = DB::table('roles')->where('nombre', 'Administrador')->first()->id;
-        DB::table('usuarios')->insert([
-            'rol_id'          => $rol_admin,
-            'username'        => 'admin',
-            'password'        => 'admin123',
-            'password_texto'  => 'admin123',
-            'correo'          => 'admin@ficct.uagrm.edu.bo',
-            'estado'          => true,
-            'created_at'      => now(),
-            'updated_at'      => now(),
-        ]);
+        $lines = explode("\n", $sql);
+        $filteredLines = [];
+        $skip = false;
 
-        // Materias
-        DB::table('materias')->insert([
-            ['nombre' => 'Matemáticas'],
-            ['nombre' => 'Física'],
-            ['nombre' => 'Química'],
-            ['nombre' => 'Lenguaje'],
-        ]);
+        foreach ($lines as $line) {
+            // Detectar sección de tabla Laravel
+            if (preg_match('/-- Data for Name: (\w+)/', $line, $matches)) {
+                $skip = in_array($matches[1], $laravelTables);
+            }
+            if (!$skip) {
+                $filteredLines[] = $line;
+            }
+        }
+
+        $filteredSql = implode("\n", $filteredLines);
+
+        // Ejecutar solo los INSERT statements uno por uno
+        $statements = array_filter(
+            explode(";\n", $filteredSql),
+            fn($s) => str_starts_with(trim($s), 'INSERT')
+        );
+
+        foreach ($statements as $statement) {
+            $statement = trim($statement);
+            if (!empty($statement)) {
+                DB::statement($statement . ';');
+            }
+        }
+
+        // Resetear secuencias de PostgreSQL
+        $tables = ['roles', 'usuarios', 'administrativos', 'aulas', 'docentes',
+                  'horarios', 'grupos', 'materias', 'asignaciones_docentes',
+                  'facultades', 'carreras', 'postulantes', 'postulaciones',
+                  'documentos_postulantes', 'notas', 'pagos', 'bitacora'];
+
+        foreach ($tables as $table) {
+            DB::statement("SELECT setval(pg_get_serial_sequence('$table', 'id'),
+                          COALESCE((SELECT MAX(id) FROM $table), 1));");
+        }
+
+        // Reactivar restricciones FK
+        DB::statement('SET session_replication_role = DEFAULT;');
     }
 }
