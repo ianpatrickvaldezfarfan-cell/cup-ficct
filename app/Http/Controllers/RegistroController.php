@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use App\Services\BitacoraService;
+use App\Helpers\PasswordHelper;
 
 /**
  * CU5 - GESTIONAR DOCUMENTOS DE POSTULANTES
@@ -102,6 +105,7 @@ class RegistroController extends Controller
             'colegio_procedencia' => 'nullable|string',
             'carrera_opcion1_id'  => 'required|integer|exists:carreras,id',
             'carrera_opcion2_id'  => 'required|integer|exists:carreras,id|different:carrera_opcion1_id',
+            'turno_preferido'     => 'required|in:manana,tarde,noche',
         ]);
 
         try {
@@ -141,6 +145,7 @@ class RegistroController extends Controller
                     'carrera_asignada_id' => $carreraAsignadaId,
                     'gestion'             => date('Y'),
                     'estado_admision'     => 'PENDIENTE_PAGO',
+                    'turno_preferido'     => $request->turno_preferido,
                 ]);
 
                 return [
@@ -259,10 +264,8 @@ class RegistroController extends Controller
                 $username = $base . $n++;
             }
 
-            // 3. Generar password: 2 mayúsculas + 4 dígitos + 2 minúsculas
-            $password = substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ'), 0, 2)
-                      . substr(str_shuffle('0123456789'), 0, 4)
-                      . substr(str_shuffle('abcdefghjkmnpqrstuvwxyz'), 0, 2);
+            // 3. Generar password seguro (8 chars: mayus + minus + nums + especiales)
+            $password = PasswordHelper::generar();
 
             // 4. Crear usuario
             $usuarioId = DB::table('usuarios')->insertGetId([
@@ -289,5 +292,195 @@ class RegistroController extends Controller
         });
 
         return response()->json($result);
+    }
+
+    /**
+     * Registro público de docentes.
+     * Verifica que la profesión tenga relación con las materias del CUP.
+     * Si cumple: crea usuario (rol_id=2) y docente, devuelve credenciales.
+     * Si no cumple: envía correo de rechazo y devuelve 422.
+     */
+    public function registroDocente(Request $request)
+    {
+        $request->validate([
+            'ci'              => 'required|string',
+            'nombres'         => 'required|string',
+            'apellidos'       => 'required|string',
+            'correo'          => 'required|email',
+            'profesion'       => 'required|string',
+            'tiene_maestria'  => 'boolean',
+            'tiene_diplomado' => 'boolean',
+        ]);
+
+        // Palabras clave aceptadas — incluye formas con y sin acento
+        $palabrasAceptadas = [
+            // COMPUTACIÓN / SISTEMAS / INFORMÁTICA
+            'computacion','computación','sistemas','informatica','informática',
+            'software','programacion','programación','tecnologia','tecnología',
+            'redes','telecomunicaciones','electronica','electrónica',
+            'robotica','robótica','ciberseguridad','datos','inteligencia',
+            'artificial','developer','desarrollo','web','movil','móvil',
+            'ingeniero','ingeniería','ingenieria','licenciado','licenciada',
+            'tecnico','técnico','tecnica','técnica',
+            // MATEMÁTICAS
+            'matematica','matemática','matematicas','matemáticas',
+            'estadistica','estadística','calculo','cálculo',
+            'algebra','álgebra','actuaria','actuaría','actuario',
+            'contabilidad','contador','contadora','economia','economía',
+            'economista','finanzas','financiero','financiera',
+            'industrial','civil','arquitecto','arquitectura','arquitecta',
+            // INGLÉS / IDIOMAS
+            'ingles','inglés','idiomas','idioma','linguistica','lingüística',
+            'linguístico','filologia','filología','letras','comunicacion',
+            'comunicación','comunicador','comunicadora','traduccion','traducción',
+            'traductor','traductora','bilingue','bilingüe','english',
+            'literatura','literato','humanidades','humanista',
+            'profesor','profesora','docente','educacion','educación',
+            'pedagogia','pedagogía','pedagogo','pedagoga',
+            // FÍSICA / CIENCIAS
+            'fisica','física','quimica','química','ciencias','ciencia',
+            'laboratorio','investigacion','investigación','investigador','investigadora',
+            'astrofisica','astrofísica','mecanica','mecánica','mecanico','mecánico',
+            'electromecanica','electromecánica','biologia','biología','biologo','biólogo',
+            'ambiental','quimico','químico','geologia','geología','geologo','geólogo',
+            'astronomo','astrónomo','astronomia','astronomía',
+        ];
+
+        // Función de normalización: minúsculas + quitar acentos
+        $normalizar = function ($texto) {
+            return strtr(strtolower($texto), [
+                'á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ü'=>'u','ñ'=>'n',
+                'Á'=>'a','É'=>'e','Í'=>'i','Ó'=>'o','Ú'=>'u','Ü'=>'u','Ñ'=>'n',
+            ]);
+        };
+
+        $profesionNorm   = $normalizar($request->profesion);
+        $palabrasProfesion = explode(' ', $profesionNorm);
+
+        $cumple = false;
+
+        // Paso 1: verificar palabra por palabra de la profesión
+        foreach ($palabrasProfesion as $palabraProf) {
+            if (strlen($palabraProf) < 4) continue;
+            foreach ($palabrasAceptadas as $aceptada) {
+                $aceptadaNorm = $normalizar($aceptada);
+                if (str_contains($palabraProf, $aceptadaNorm) ||
+                    str_contains($aceptadaNorm, $palabraProf)) {
+                    $cumple = true;
+                    break 2;
+                }
+            }
+        }
+
+        // Paso 2: verificar la profesión completa como cadena
+        if (!$cumple) {
+            foreach ($palabrasAceptadas as $aceptada) {
+                if (str_contains($profesionNorm, $normalizar($aceptada))) {
+                    $cumple = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$cumple) {
+            $asunto  = 'CUP-FICCT — Solicitud de Registro Docente';
+            $cuerpo  = "Estimado/a {$request->nombres} {$request->apellidos},\n\n"
+                . "Gracias por su interés en formar parte del equipo docente del CUP de la FICCT.\n\n"
+                . "Lamentablemente, luego de evaluar su solicitud, su profesión "
+                . "'{$request->profesion}' no cumple con los requisitos establecidos "
+                . "para las materias que se imparten:\n\n"
+                . "• Computación e Informática\n• Matemáticas\n• Inglés\n• Física\n\n"
+                . "Los docentes deben ser profesionales en áreas relacionadas con esas materias.\n\n"
+                . "Si considera que su perfil sí cumple los requisitos, comuníquese con la administración.\n\n"
+                . "Atentamente,\nAdministración CUP-FICCT\nfcctcup@uagrm.edu.bo";
+
+            try {
+                Mail::raw($cuerpo, function ($msg) use ($request, $asunto) {
+                    $msg->to($request->correo)
+                        ->subject($asunto)
+                        ->from('fcctcup@uagrm.edu.bo', 'CUP-FICCT');
+                });
+            } catch (\Exception $e) { /* Fallo de correo no bloquea la respuesta */ }
+
+            return response()->json([
+                'success'            => false,
+                'cumple_requisitos'  => false,
+                'correo'             => $request->correo,
+                'mensaje'            => 'Tu profesión no cumple con los requisitos para las materias del CUP. '
+                                      . 'Se ha enviado un correo a ' . $request->correo . ' con más información.',
+            ], 422);
+        }
+
+        // Verificar duplicados antes de la transacción
+        if (DB::table('docentes')->where('ci', $request->ci)->exists()) {
+            return response()->json(['success' => false, 'mensaje' => 'Ya existe un docente con ese CI.'], 422);
+        }
+        if (DB::table('usuarios')->where('correo', $request->correo)->exists()) {
+            return response()->json(['success' => false, 'mensaje' => 'Ya existe un usuario con ese correo.'], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Generar username: inicial_nombre + primer_apellido (sin CI, sin acentos)
+            $baseUsername = strtolower(
+                substr(trim($request->nombres), 0, 1) .
+                explode(' ', trim($request->apellidos))[0]
+            );
+            $baseUsername = iconv('UTF-8', 'ASCII//TRANSLIT', $baseUsername) ?: $baseUsername;
+            $baseUsername = preg_replace('/[^a-z0-9]/', '', $baseUsername);
+            $username = $baseUsername;
+            $counter  = 1;
+            while (DB::table('usuarios')->where('username', $username)->exists()) {
+                $username = $baseUsername . $counter;
+                $counter++;
+            }
+
+            $password = PasswordHelper::generar();
+
+            $usuarioId = DB::table('usuarios')->insertGetId([
+                'rol_id'         => 2,
+                'username'       => $username,
+                'password'       => $password,
+                'password_texto' => $password,
+                'correo'         => $request->correo,
+                'estado'         => true,
+                'created_at'     => now(),
+            ]);
+
+            DB::table('docentes')->insert([
+                'usuario_id'      => $usuarioId,
+                'ci'              => $request->ci,
+                'nombres'         => $request->nombres,
+                'apellidos'       => $request->apellidos,
+                'correo'          => $request->correo,
+                'profesion'       => $request->profesion,
+                'tiene_maestria'  => $request->tiene_maestria  ?? false,
+                'tiene_diplomado' => $request->tiene_diplomado ?? false,
+            ]);
+
+            BitacoraService::registrar(
+                $usuarioId, 'INSERT', 'docentes',
+                'Registro público de docente: ' . $request->nombres . ' ' . $request->apellidos
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success'           => true,
+                'cumple_requisitos' => true,
+                'mensaje'           => 'Registro exitoso',
+                'credenciales'      => [
+                    'username'  => $username,
+                    'password'  => $password,
+                    'nombres'   => $request->nombres,
+                    'apellidos' => $request->apellidos,
+                    'correo'    => $request->correo,
+                    'profesion' => $request->profesion,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'mensaje' => 'Error al registrar: ' . $e->getMessage()], 500);
+        }
     }
 }

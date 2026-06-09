@@ -23,7 +23,7 @@ import React, { useState } from 'react';
  * Mensaje 1.6: [si error] mostrarError()
  *   → setError('Credenciales incorrectas')
  */
-function Login({ onLogin, onRegistro }) {
+function Login({ onLogin, onRegistro, onRegistroDocente }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -36,6 +36,7 @@ function Login({ onLogin, onRegistro }) {
 
     const [hoverLogin, setHoverLogin] = useState(false);
     const [hoverReg, setHoverReg] = useState(false);
+    const [hoverDocente, setHoverDocente] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -290,9 +291,26 @@ function Login({ onLogin, onRegistro }) {
                             color: hoverReg ? '#fff' : '#f59e0b',
                             borderRadius: 8, padding: '0.6rem 1.5rem', fontWeight: 700,
                             cursor: 'pointer', fontSize: '0.95rem', width: '100%',
+                            marginBottom: '0.6rem',
                         }}
                     >
                         ¿Eres nuevo? Regístrate aquí →
+                    </button>
+
+                    <button
+                        type="button"
+                        onMouseEnter={() => setHoverDocente(true)}
+                        onMouseLeave={() => setHoverDocente(false)}
+                        onClick={onRegistroDocente}
+                        style={{
+                            background: hoverDocente ? '#0d9488' : 'transparent',
+                            border: '2px solid #0d9488',
+                            color: hoverDocente ? '#fff' : '#0d9488',
+                            borderRadius: 8, padding: '0.6rem 1.5rem', fontWeight: 700,
+                            cursor: 'pointer', fontSize: '0.95rem', width: '100%',
+                        }}
+                    >
+                        👨‍🏫 ¿Eres docente? Regístrate aquí →
                     </button>
 
                     <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.75rem', marginTop: '1.5rem', marginBottom: 0 }}>

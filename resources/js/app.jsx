@@ -14,6 +14,7 @@ import Postulaciones from './components/Postulaciones';
 import Usuarios from './components/Usuarios';
 import Bitacora from './components/Bitacora';
 import Registro from './components/Registro';
+import RegistroDocente from './components/RegistroDocente';
 import SubirDocumentos from './components/SubirDocumentos';
 import PasarelaPago from './components/PasarelaPago';
 import RegistroExito from './components/RegistroExito';
@@ -59,6 +60,11 @@ function App() {
                 onRegistro={() => setVista('registro')}
             />
         );
+    }
+
+    // Registro de docente
+    if (vista === 'registro-docente') {
+        return <RegistroDocente onVolver={() => setVista('login')} />;
     }
 
     // Paso 1 — Datos personales
@@ -108,6 +114,7 @@ function App() {
         <Login
             onLogin={setUser}
             onRegistro={() => setVista('registro')}
+            onRegistroDocente={() => setVista('registro-docente')}
         />
     );
 }

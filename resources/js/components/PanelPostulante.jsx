@@ -378,55 +378,214 @@ function SeccionGrupo({ userId, onVolver }) {
 
     if (data === undefined) return <Spinner />;
 
-    return (
-        <div>
-            <Volver onVolver={onVolver} titulo="Mi Grupo" />
-            {!data ? (
+    const grupo = data?.grupo;
+
+    if (!grupo) {
+        return (
+            <div>
+                <Volver onVolver={onVolver} titulo="Mi Grupo" />
                 <div style={{ background: '#fff', borderRadius: 14, padding: 40, textAlign: 'center', color: '#94a3b8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                     <div style={{ fontSize: 36, marginBottom: 10 }}>👥</div>
                     Aún no tienes grupo asignado. Los grupos se asignan luego de completar el proceso de inscripción.
                 </div>
-            ) : (
-                <div>
-                    <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', padding: '24px 28px', marginBottom: 20, maxWidth: 620 }}>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-                            <span style={{ fontWeight: 700, color: '#1a3a6b', fontSize: 20 }}>{data.grupo.grupo_nombre}</span>
-                            {data.grupo.turno && <span style={{ background: '#fef9c3', color: '#92400e', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>{data.grupo.turno}</span>}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
-                            {[
-                                ['Gestión', data.grupo.gestion],
-                                ['Aula', data.grupo.aula],
-                                ['Horario', data.grupo.horario_ini ? `${data.grupo.horario_ini}–${data.grupo.horario_fin}` : '—'],
-                                ['Días', data.grupo.dias],
-                            ].map(([k, v]) => (
-                                <div key={k}>
-                                    <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>{k}</div>
-                                    <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{v ?? '—'}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+            </div>
+        );
+    }
 
-                    <h6 style={{ color: '#1a3a6b', fontWeight: 700, marginBottom: 12 }}>Docentes por materia</h6>
-                    <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                        <table className="table mb-0" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-                            <thead>
-                                <tr>{['Materia','Docente','Aula'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
-                            </thead>
-                            <tbody>
-                                {(data.docentes ?? []).map((d, i) => (
-                                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                        <td style={{ ...tdStyle, fontWeight: 600 }}>{d.materia}</td>
-                                        <td style={tdStyle}>{d.docente}</td>
-                                        <td style={{ ...tdStyle, color: '#64748b' }}>{d.aula ?? '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+    const diasSemana = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
+    const diasLabel  = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+    const tieneClase = (dia) => {
+        if (!grupo.dias) return false;
+        const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        return norm(grupo.dias).includes(norm(dia));
+    };
+
+    const getTurno = () => {
+        if (!grupo.horario_ini) return 'manana';
+        const h = parseInt(grupo.horario_ini.split(':')[0]);
+        if (h < 13) return 'manana';
+        if (h < 18) return 'tarde';
+        return 'noche';
+    };
+
+    const turnoInfo = {
+        manana: { icono: '🌅', label: 'Mañana', bgColor: '#FFF9C4', textColor: '#F57F17', badgeColor: '#f59e0b', badgeText: '#1a3a6b' },
+        tarde:  { icono: '🌇', label: 'Tarde',  bgColor: '#FFE0B2', textColor: '#E65100', badgeColor: '#f97316', badgeText: '#fff' },
+        noche:  { icono: '🌙', label: 'Noche',  bgColor: '#E8EAF6', textColor: '#1a3a6b', badgeColor: '#3949ab', badgeText: '#fff' },
+    }[getTurno()];
+
+    const getMateriaIcono = (materia) => {
+        const m = (materia || '').toLowerCase();
+        if (m.includes('comput') || m.includes('inform')) return '🖥️';
+        if (m.includes('matem') || m.includes('calculo') || m.includes('cálculo')) return '📐';
+        if (m.includes('fisic') || m.includes('física')) return '🔬';
+        if (m.includes('ingles') || m.includes('inglés') || m.includes('idioma')) return '🌍';
+        return '📚';
+    };
+
+    return (
+        <div>
+            <Volver onVolver={onVolver} titulo="Mi Grupo" />
+
+            {/* 1. Card información del grupo */}
+            <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.08)', padding: '24px 28px', marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
+                    <span style={{ fontWeight: 800, color: '#1a3a6b', fontSize: 22 }}>{grupo.nombre}</span>
+                    <span style={{ background: turnoInfo.badgeColor, color: turnoInfo.badgeText, borderRadius: 20, padding: '4px 14px', fontSize: 13, fontWeight: 700 }}>
+                        {turnoInfo.icono} {turnoInfo.label}
+                    </span>
+                </div>
+                <div className="row g-3">
+                    <div className="col-md-4 col-6">
+                        <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Horario</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{turnoInfo.icono} {grupo.horario_ini} - {grupo.horario_fin}</div>
+                    </div>
+                    <div className="col-md-4 col-6">
+                        <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Aula</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>🏫 {grupo.aula_nombre || '—'}</div>
+                    </div>
+                    <div className="col-md-4 col-6">
+                        <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Compañeros</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>👥 {data.total_companeros} estudiantes</div>
                     </div>
                 </div>
+            </div>
+
+            {/* 2. Calendario semanal visual */}
+            <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.08)', padding: '20px 24px', marginBottom: 24 }}>
+                <h6 style={{ color: '#1a3a6b', fontWeight: 700, marginBottom: 16, fontSize: 15 }}>📅 Horario Semanal</h6>
+                <div style={{ overflowX: 'auto' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(110px, 1fr))', gap: 8, minWidth: 770 }}>
+                        {diasSemana.map((dia, i) => {
+                            const activo = tieneClase(dia);
+                            const cellBg    = activo ? turnoInfo.bgColor  : '#F5F5F5';
+                            const cellColor = activo ? turnoInfo.textColor : '#9E9E9E';
+                            return (
+                                <div key={dia} style={{ background: cellBg, borderRadius: 8, padding: '12px 6px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', minHeight: 110, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: cellColor, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{diasLabel[i]}</div>
+                                    <div style={{ fontSize: 26 }}>{activo ? turnoInfo.icono : '😴'}</div>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: cellColor, lineHeight: 1.4 }}>
+                                        {activo ? <span>{grupo.horario_ini}<br />{grupo.horario_fin}</span> : <span>Libre</span>}
+                                    </div>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: cellColor, background: activo ? 'rgba(0,0,0,0.07)' : 'transparent', borderRadius: 4, padding: '1px 6px', minHeight: 16 }}>
+                                        {activo ? 'Clases' : ''}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Tarjetas de materias y docentes */}
+            <h6 style={{ color: '#1a3a6b', fontWeight: 700, marginBottom: 12, fontSize: 15 }}>📚 Materias y Docentes</h6>
+            <div className="row g-3 mb-4">
+                {(data.docentes_materias ?? []).length === 0 ? (
+                    <div className="col-12">
+                        <div style={{ background: '#f8fafc', borderRadius: 10, padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                            Sin docentes asignados aún.
+                        </div>
+                    </div>
+                ) : (data.docentes_materias ?? []).map((dm, i) => (
+                    <div className="col-md-6 col-12" key={i}>
+                        <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: `3px solid ${turnoInfo.badgeColor}`, height: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                                <span style={{ fontSize: 28 }}>{getMateriaIcono(dm.materia)}</span>
+                                <div>
+                                    <div style={{ fontWeight: 700, color: '#1a3a6b', fontSize: 14 }}>{dm.materia}</div>
+                                    <span style={{ background: turnoInfo.bgColor, color: turnoInfo.textColor, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
+                                        {turnoInfo.icono} {turnoInfo.label}
+                                    </span>
+                                </div>
+                            </div>
+                            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 10 }}>
+                                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Docente</div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>👨‍🏫 {dm.docente_nombres} {dm.docente_apellidos}</div>
+                                {dm.aula_materia && (
+                                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>🏫 Aula: {dm.aula_materia}</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Turno preferido vs asignado */}
+            {data.turno_preferido && (
+                <div style={{ marginBottom: 24 }}>
+                    {(() => {
+                        const turnoAsignado = getTurno();
+                        const coincide = turnoAsignado === data.turno_preferido;
+                        const labelTurno = { manana: 'Mañana', tarde: 'Tarde', noche: 'Noche' };
+                        const iconTurno  = { manana: '🌅', tarde: '🌇', noche: '🌙' };
+                        const bgPref = { manana: '#FFF9C4', tarde: '#FFE0B2', noche: '#E8EAF6' };
+                        const clPref = { manana: '#92400e', tarde: '#7c2d12', noche: '#1a3a6b' };
+                        return (
+                            <div style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                                <div className="row g-3 align-items-center">
+                                    <div className="col-md-5">
+                                        <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Tu turno preferido</div>
+                                        <span style={{ background: bgPref[data.turno_preferido] || '#f1f5f9', color: clPref[data.turno_preferido] || '#374151', borderRadius: 20, padding: '4px 14px', fontSize: 13, fontWeight: 700, display: 'inline-block' }}>
+                                            {iconTurno[data.turno_preferido]} {labelTurno[data.turno_preferido] || data.turno_preferido}
+                                        </span>
+                                    </div>
+                                    <div className="col-md-5">
+                                        <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Turno asignado</div>
+                                        <span style={{ background: bgPref[turnoAsignado] || '#f1f5f9', color: clPref[turnoAsignado] || '#374151', borderRadius: 20, padding: '4px 14px', fontSize: 13, fontWeight: 700, display: 'inline-block' }}>
+                                            {iconTurno[turnoAsignado]} {labelTurno[turnoAsignado] || turnoAsignado}
+                                        </span>
+                                    </div>
+                                    <div className="col-md-2">
+                                        {coincide ? (
+                                            <div style={{ background: '#dcfce7', color: '#15803d', borderRadius: 8, padding: '6px 10px', fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
+                                                ✓ Tu turno preferido
+                                            </div>
+                                        ) : (
+                                            <div style={{ background: '#fef9c3', color: '#92400e', borderRadius: 8, padding: '6px 10px', fontSize: 12, fontWeight: 600, textAlign: 'center' }}>
+                                                ⚠ Sin cupo en tu turno preferido
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
             )}
+
+            {/* 4. Card resumen personal */}
+            <div style={{ background: 'linear-gradient(135deg, #1a3a6b, #2563eb)', borderRadius: 14, padding: '24px 28px', color: '#fff' }}>
+                <div style={{ fontSize: 12, opacity: 0.75, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>Tu Resumen en el Grupo</div>
+                <div className="row g-3">
+                    <div className="col-md-6">
+                        <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '14px 18px' }}>
+                            <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 4 }}>Número en el grupo</div>
+                            <div style={{ fontSize: 20, fontWeight: 800 }}>
+                                #{data.numero_en_grupo} <span style={{ fontSize: 13, opacity: 0.7 }}>de {data.total_companeros} estudiantes</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-md-6">
+                        <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '14px 18px' }}>
+                            <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 4 }}>Estado de Admisión</div>
+                            {estadoBadge(data.estado_admision, true)}
+                        </div>
+                    </div>
+                    <div className="col-md-6">
+                        <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '14px 18px' }}>
+                            <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 4 }}>Carrera Asignada</div>
+                            <div style={{ fontSize: 14, fontWeight: 700 }}>🎓 {data.carrera_asignada || 'En proceso'}</div>
+                        </div>
+                    </div>
+                    <div className="col-md-6">
+                        <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '14px 18px' }}>
+                            <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 4 }}>Gestión</div>
+                            <div style={{ fontSize: 14, fontWeight: 700 }}>📅 {data.gestion || new Date().getFullYear()}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

@@ -7,6 +7,34 @@ const FORM_VACIO = {
     profesion: '', tiene_maestria: false, tiene_diplomado: false,
 };
 
+function detectarMateriaKey(profesion) {
+    if (!profesion) return null;
+    const p = profesion.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const kw = {
+        computacion: ['computacion','sistemas','informatica','software','programacion','tecnologia','redes','telecomunicaciones','electronica','robotica','ciberseguridad','datos','inteligencia','artificial','developer','desarrollo','web','movil'],
+        matematicas:  ['matematica','estadistica','calculo','algebra','actuaria','contabilidad','economia','finanzas','ingenieria','industrial','civil','arquitectura'],
+        ingles:       ['ingles','idiomas','linguistica','filologia','letras','comunicacion','traduccion','bilingue','english','literatura','humanidades'],
+        fisica:       ['fisica','quimica','ciencias','laboratorio','investigacion','astrofisica','mecanica','electromecanica','biologia','ambiental'],
+    };
+    for (const [key, words] of Object.entries(kw)) {
+        if (words.some(w => p.includes(w))) return key;
+    }
+    return null;
+}
+
+function MateriaBadge({ profesion }) {
+    const key = detectarMateriaKey(profesion);
+    const cfg = {
+        computacion: { icon: '🖥️', label: 'Computación', bg: '#dbeafe', color: '#1d4ed8' },
+        matematicas:  { icon: '📐', label: 'Matemáticas',  bg: '#dcfce7', color: '#15803d' },
+        ingles:       { icon: '🌍', label: 'Inglés',        bg: '#ede9fe', color: '#7c3aed' },
+        fisica:       { icon: '🔬', label: 'Física',        bg: '#ffedd5', color: '#c2410c' },
+    };
+    if (!key) return <span style={{ background: '#f1f5f9', color: '#94a3b8', borderRadius: 20, padding: '0.18rem 0.6rem', fontSize: '0.73rem' }}>❓ Sin detectar</span>;
+    const c = cfg[key];
+    return <span style={{ background: c.bg, color: c.color, borderRadius: 20, padding: '0.18rem 0.6rem', fontSize: '0.73rem', fontWeight: 700 }}>{c.icon} {c.label}</span>;
+}
+
 function TurnoBadge({ turno }) {
     if (!turno) return <span style={{ color: '#94a3b8' }}>—</span>;
     if (turno === 'Manana') return <span style={{ background: '#fef9c3', color: '#b45309', borderRadius: 20, padding: '0.18rem 0.6rem', fontSize: '0.73rem', fontWeight: 700 }}>🌅 Mañana</span>;
@@ -359,14 +387,14 @@ function Docentes({ user, onBack }) {
                         <table className="table mb-0" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                             <thead>
                                 <tr style={{ background: '#1a3a6b' }}>
-                                    {['#','CI','Nombres','Apellidos','Profesión','Maestría','Diplomado','Correo','Acciones'].map(h => (
+                                    {['#','CI','Nombres','Apellidos','Profesión','Materia Detectada','Maestría','Diplomado','Correo','Acciones'].map(h => (
                                         <th key={h} style={thStyle}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {docentes.length === 0 ? (
-                                    <tr><td colSpan={9} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                         <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>👨‍🏫</div>
                                         No hay docentes registrados
                                     </td></tr>
@@ -377,6 +405,7 @@ function Docentes({ user, onBack }) {
                                         <td style={tdStyle}>{d.nombres}</td>
                                         <td style={tdStyle}>{d.apellidos}</td>
                                         <td style={{ ...tdStyle, color: '#64748b', fontSize: '0.82rem' }}>{d.profesion}</td>
+                                        <td style={{ ...tdStyle, textAlign: 'center' }}><MateriaBadge profesion={d.profesion} /></td>
                                         <td style={{ ...tdStyle, textAlign: 'center' }}>
                                             {d.tiene_maestria
                                                 ? <span style={{ background: '#dcfce7', color: '#15803d', borderRadius: 20, padding: '0.18rem 0.6rem', fontSize: '0.73rem', fontWeight: 700 }}>✓ Sí</span>

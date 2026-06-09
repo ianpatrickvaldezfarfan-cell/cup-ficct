@@ -219,47 +219,66 @@ class PostulantePortalController extends Controller
         $postulacion = $this->resolverPostulacion($postulante->id);
         if (!$postulacion) return response()->json(null);
 
-        $grupoInfo = DB::table('grupo_postulantes')
-            ->join('grupos',    'grupo_postulantes.grupo_id', '=', 'grupos.id')
-            ->leftJoin('aulas',    'grupos.aula_id',    '=', 'aulas.id')
-            ->leftJoin('horarios', 'grupos.horario_id', '=', 'horarios.id')
-            ->where('grupo_postulantes.postulacion_id', $postulacion->id)
+        $grupoPostulante = DB::table('grupo_postulantes')
+            ->where('postulacion_id', $postulacion->id)
+            ->first();
+
+        if (!$grupoPostulante) return response()->json(['grupo' => null]);
+
+        $grupo = DB::table('grupos as g')
+            ->leftJoin('aulas as a', 'a.id', '=', 'g.aula_id')
+            ->leftJoin('horarios as h', 'h.id', '=', 'g.horario_id')
+            ->where('g.id', $grupoPostulante->grupo_id)
             ->select(
-                'grupos.id as grupo_id',
-                'grupos.nombre as grupo_nombre',
-                'grupos.gestion',
-                'aulas.nombre as aula',
-                DB::raw("TO_CHAR(horarios.horario_ini, 'HH24:MI') as horario_ini"),
-                DB::raw("TO_CHAR(horarios.horario_fin, 'HH24:MI') as horario_fin"),
-                'horarios.dias',
-                DB::raw("
-                    CASE
-                        WHEN horarios.horario_ini < '12:00:00'::time THEN 'Mañana'
-                        WHEN horarios.horario_ini < '18:00:00'::time THEN 'Tarde'
-                        ELSE 'Noche'
-                    END as turno
-                ")
+                'g.id',
+                'g.nombre',
+                'g.gestion',
+                'a.nombre as aula_nombre',
+                'a.capacidad as aula_capacidad',
+                DB::raw("TO_CHAR(h.horario_ini, 'HH24:MI') as horario_ini"),
+                DB::raw("TO_CHAR(h.horario_fin, 'HH24:MI') as horario_fin"),
+                'h.dias'
             )
             ->first();
 
-        if (!$grupoInfo) return response()->json(null);
+        if (!$grupo) return response()->json(['grupo' => null]);
 
-        $docentes = DB::table('asignaciones_docentes')
-            ->join('docentes',  'asignaciones_docentes.docente_id',  '=', 'docentes.id')
-            ->join('materias',  'asignaciones_docentes.materia_id',  '=', 'materias.id')
-            ->leftJoin('aulas', 'asignaciones_docentes.aula_id',     '=', 'aulas.id')
-            ->where('asignaciones_docentes.grupo_id', $grupoInfo->grupo_id)
+        $totalCompaneros = DB::table('grupo_postulantes')
+            ->where('grupo_id', $grupoPostulante->grupo_id)
+            ->count();
+
+        $numeroEnGrupo = DB::table('grupo_postulantes')
+            ->where('grupo_id', $grupoPostulante->grupo_id)
+            ->where('postulacion_id', '<=', $postulacion->id)
+            ->count();
+
+        $docentesMaterias = DB::table('asignaciones_docentes as ad')
+            ->join('docentes as d', 'd.id', '=', 'ad.docente_id')
+            ->join('materias as m', 'm.id', '=', 'ad.materia_id')
+            ->leftJoin('aulas as a', 'a.id', '=', 'ad.aula_id')
+            ->where('ad.grupo_id', $grupoPostulante->grupo_id)
             ->select(
-                'materias.nombre as materia',
-                DB::raw("docentes.nombres || ' ' || docentes.apellidos as docente"),
-                'aulas.nombre as aula'
+                'm.nombre as materia',
+                'd.nombres as docente_nombres',
+                'd.apellidos as docente_apellidos',
+                'a.nombre as aula_materia'
             )
-            ->orderBy('materias.nombre')
+            ->orderBy('m.nombre')
             ->get();
 
+        $carrera = $postulacion->carrera_asignada_id
+            ? DB::table('carreras')->where('id', $postulacion->carrera_asignada_id)->first()
+            : null;
+
         return response()->json([
-            'grupo'   => $grupoInfo,
-            'docentes' => $docentes,
+            'grupo'             => $grupo,
+            'total_companeros'  => $totalCompaneros,
+            'numero_en_grupo'   => $numeroEnGrupo,
+            'docentes_materias' => $docentesMaterias,
+            'estado_admision'   => $postulacion->estado_admision,
+            'carrera_asignada'  => $carrera ? $carrera->nombre : 'En proceso',
+            'gestion'           => $postulacion->gestion,
+            'turno_preferido'   => $postulacion->turno_preferido ?? 'manana',
         ]);
     }
 }

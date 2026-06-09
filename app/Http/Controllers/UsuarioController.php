@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Services\BitacoraService;
+use App\Helpers\PasswordHelper;
 
 /**
  * CU7 - GESTIONAR USUARIOS Y ROLES
@@ -67,15 +68,19 @@ class UsuarioController extends Controller
         $request->validate([
             'username' => 'required|string|unique:usuarios,username',
             'correo'   => 'required|email|unique:usuarios,correo',
-            'password' => 'required|string|min:4',
+            'password' => 'nullable|string|min:4',
             'rol_id'   => 'required|integer|exists:roles,id',
         ]);
+
+        $password = $request->filled('password')
+            ? $request->password
+            : PasswordHelper::generar();
 
         $id = DB::table('usuarios')->insertGetId([
             'rol_id'          => $request->rol_id,
             'username'        => $request->username,
-            'password'        => $request->password,
-            'password_texto'  => $request->password,
+            'password'        => $password,
+            'password_texto'  => $password,
             'correo'          => $request->correo,
             'estado'          => true,
             'created_at'      => now(),

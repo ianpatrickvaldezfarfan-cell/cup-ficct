@@ -29,11 +29,12 @@ Route::get("/bitacora/estadisticas", [BitacoraController::class, "estadisticas"]
 Route::get("/bitacora/filtrar",      [BitacoraController::class, "filtrar"]);
 Route::get("/bitacora",              [BitacoraController::class, "index"]);
 
-// ===== REGISTRO PUBLICO (flujo en 3 pasos) =====
+// ===== REGISTRO PUBLICO (flujo en 3 pasos + docentes) =====
 Route::get("/carreras", [RegistroController::class, "carreras"]);   // Catalogo de carreras
-Route::post("/registro/paso1",  [RegistroController::class, "paso1"]);  // Datos personales + reserva cupo
-Route::post("/registro/paso1b", [RegistroController::class, "paso1b"]); // Subida de documentos
-Route::post("/registro/paso2",  [RegistroController::class, "paso2"]);  // Pago + creacion de usuario
+Route::post("/registro/paso1",   [RegistroController::class, "paso1"]);         // Datos personales + reserva cupo
+Route::post("/registro/paso1b",  [RegistroController::class, "paso1b"]);        // Subida de documentos
+Route::post("/registro/paso2",   [RegistroController::class, "paso2"]);         // Pago + creacion de usuario
+Route::post("/registro/docente", [RegistroController::class, "registroDocente"]); // Registro publico de docentes
 
 // ===== USUARIOS (search y cargar-csv antes de /{id}) =====
 Route::get("/usuarios/search",          [UsuarioController::class, "search"]);

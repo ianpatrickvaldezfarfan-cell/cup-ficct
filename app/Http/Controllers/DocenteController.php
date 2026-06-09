@@ -286,23 +286,28 @@ class DocenteController extends Controller
                 // 6. Eliminar asignaciones anteriores
                 DB::table('asignaciones_docentes')->delete();
 
-                // 7. Dividir docentes por materia equitativamente
-                $totalDocentes = count($docentes);
-                $totalMaterias = count($materias);
+                // 7. Asignar docentes a materias según profesión
                 $docentesPorMateria = [];
-                $docenteIndex = 0;
-
-                foreach ($materias as $index => $materia) {
+                foreach ($materias as $materia) {
                     $docentesPorMateria[$materia->id] = [];
-                    $cantidad = intval($totalDocentes / $totalMaterias);
-                    if ($index < ($totalDocentes % $totalMaterias)) {
-                        $cantidad++;
-                    }
-                    for ($i = 0; $i < $cantidad; $i++) {
-                        if ($docenteIndex < $totalDocentes) {
-                            $docentesPorMateria[$materia->id][] =
-                                $docentes[$docenteIndex]->id;
-                            $docenteIndex++;
+                }
+                foreach ($docentes as $docente) {
+                    $materiaId = $this->detectarMateria($docente->profesion, $materias);
+                    if ($materiaId) {
+                        $docentesPorMateria[$materiaId][] = $docente->id;
+                    } else {
+                        // Sin coincidencia: asignar a la materia con menos docentes
+                        $materiaConMenos = null;
+                        $menorCantidad   = PHP_INT_MAX;
+                        foreach ($materias as $materia) {
+                            $cantidad = count($docentesPorMateria[$materia->id] ?? []);
+                            if ($cantidad < $menorCantidad) {
+                                $menorCantidad   = $cantidad;
+                                $materiaConMenos = $materia->id;
+                            }
+                        }
+                        if ($materiaConMenos !== null) {
+                            $docentesPorMateria[$materiaConMenos][] = $docente->id;
                         }
                     }
                 }
@@ -390,6 +395,36 @@ class DocenteController extends Controller
                 'mensaje' => 'Error: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function detectarMateria($profesion, $materias)
+    {
+        $prof = mb_strtolower($profesion ?? '', 'UTF-8');
+        $prof = iconv('UTF-8', 'ASCII//TRANSLIT', $prof) ?: $prof;
+        $prof = preg_replace('/[^a-z0-9 ]/', '', $prof);
+
+        $keywordsMateria = [
+            'computacion'  => ['computacion','sistemas','informatica','software','programacion','tecnologia','redes','telecomunicaciones','electronica','robotica','ciberseguridad','datos','inteligencia','artificial','developer','desarrollo','web','movil'],
+            'matematicas'  => ['matematica','estadistica','calculo','algebra','actuaria','contabilidad','economia','finanzas','ingenieria','industrial','civil','arquitectura'],
+            'ingles'       => ['ingles','idiomas','linguistica','filologia','letras','comunicacion','traduccion','bilingue','english','literatura','humanidades'],
+            'fisica'       => ['fisica','quimica','ciencias','laboratorio','investigacion','astrofisica','mecanica','electromecanica','biologia','ambiental'],
+        ];
+
+        foreach ($keywordsMateria as $clave => $keywords) {
+            foreach ($keywords as $kw) {
+                if (str_contains($prof, $kw)) {
+                    foreach ($materias as $materia) {
+                        $nombreNorm = mb_strtolower($materia->nombre, 'UTF-8');
+                        $nombreNorm = iconv('UTF-8', 'ASCII//TRANSLIT', $nombreNorm) ?: $nombreNorm;
+                        $nombreNorm = preg_replace('/[^a-z0-9 ]/', '', $nombreNorm);
+                        if (str_contains($nombreNorm, $clave)) {
+                            return $materia->id;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     public function misEstadisticas(Request $request)

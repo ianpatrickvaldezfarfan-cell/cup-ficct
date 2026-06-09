@@ -10,6 +10,7 @@ function Registro({ onDocumentos, onVolver }) {
         ci: '', nombres: '', apellidos: '', fecha_nac: '', genero: '',
         telefono: '', correo: '', direccion: '', ciudad: '',
         colegio_procedencia: '', carrera_opcion1_id: '', carrera_opcion2_id: '',
+        turno_preferido: 'manana',
     });
 
     useEffect(() => {
@@ -324,6 +325,55 @@ function Registro({ onDocumentos, onVolver }) {
                                     <p style={{ color: '#92400e', fontSize: '0.8rem', margin: 0, lineHeight: 1.5 }}>
                                         La opción 2 se asigna si los cupos de la opción 1 están agotados. Deben ser carreras diferentes.
                                     </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Preferencia de Turno */}
+                        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8edf5', marginBottom: '1.5rem', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                            <div style={{ background: 'linear-gradient(90deg, #1a3a6b, #2563eb)', padding: '0.7rem 1.25rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: '1rem' }}>⏰</span>
+                                <h6 style={{ color: '#fff', fontWeight: 700, margin: 0, fontSize: '0.9rem' }}>Preferencia de Turno</h6>
+                            </div>
+                            <div className="card-body p-3">
+                                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
+                                    Selecciona el turno en que prefieres asistir a clases. Se tomará en cuenta al asignarte a un grupo.
+                                </p>
+                                <div className="row g-3">
+                                    {[
+                                        { val: 'manana', icono: '🌅', titulo: 'Turno Mañana',  horario: '07:00 - 13:00', dias: 'Lun-Mié-Vie o Mar-Jue-Sáb', bgSel: '#FFF9C4', borderSel: '#f59e0b', textSel: '#92400e' },
+                                        { val: 'tarde',  icono: '🌇', titulo: 'Turno Tarde',   horario: '13:00 - 18:00', dias: 'Lun-Mié-Vie o Mar-Jue-Sáb', bgSel: '#FFE0B2', borderSel: '#f97316', textSel: '#7c2d12' },
+                                        { val: 'noche',  icono: '🌙', titulo: 'Turno Noche',   horario: '18:00 - 20:00', dias: 'Lun-Mié-Vie o Mar-Jue-Sáb', bgSel: '#E8EAF6', borderSel: '#1a3a6b', textSel: '#1a3a6b' },
+                                    ].map(t => {
+                                        const sel = form.turno_preferido === t.val;
+                                        return (
+                                            <div className="col-md-4" key={t.val}>
+                                                <div
+                                                    onClick={() => set('turno_preferido', t.val)}
+                                                    style={{
+                                                        background: sel ? t.bgSel : '#f8fafc',
+                                                        border: `2px solid ${sel ? t.borderSel : '#e2e8f0'}`,
+                                                        borderRadius: 12,
+                                                        padding: '1.1rem',
+                                                        cursor: 'pointer',
+                                                        textAlign: 'center',
+                                                        transition: 'all 0.15s',
+                                                        boxShadow: sel ? `0 4px 12px ${t.borderSel}40` : '0 1px 4px rgba(0,0,0,0.05)',
+                                                    }}
+                                                >
+                                                    <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>{t.icono}</div>
+                                                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: sel ? t.textSel : '#1e293b', marginBottom: '0.25rem' }}>{t.titulo}</div>
+                                                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: sel ? t.textSel : '#64748b', marginBottom: '0.2rem' }}>{t.horario}</div>
+                                                    <div style={{ fontSize: '0.72rem', color: sel ? t.textSel : '#94a3b8' }}>{t.dias}</div>
+                                                    {sel && (
+                                                        <div style={{ marginTop: '0.5rem', background: t.borderSel, color: '#fff', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700, padding: '2px 10px', display: 'inline-block' }}>
+                                                            ✓ Seleccionado
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

@@ -127,17 +127,17 @@ class GrupoController extends Controller
     {
         // DIAGRAMA SECUENCIA CU10 - Mensajes 1.2 al 1.12
         // 1.4: CEIL(totalInscritos/70) = cantidad de grupos
-        // 1.6: Distribución round-robin equitativa
-        // 1.8: Asignación de aula y horario por turno
+        // 1.6: Distribución round-robin por turno preferido
+        // 1.8: Asignación de aula y horario por turno real del horario
         $gestion = $request->input('gestion', date('Y'));
 
-        // Obtener todas las postulaciones de la gestión
+        // Obtener postulaciones con turno_preferido
         $postulaciones = DB::table('postulaciones')
             ->where('gestion', $gestion)
-            ->pluck('id')
-            ->toArray();
+            ->select('id', DB::raw("COALESCE(turno_preferido, 'manana') as turno_preferido"))
+            ->get();
 
-        $total = count($postulaciones);
+        $total = $postulaciones->count();
 
         if ($total === 0) {
             return response()->json(['message' => 'No hay postulaciones para la gestión ' . $gestion], 422);
@@ -146,7 +146,7 @@ class GrupoController extends Controller
         $cantidadGrupos = (int) ceil($total / 70);
 
         $detalleGrupos = DB::transaction(function () use ($gestion, $postulaciones, $cantidadGrupos) {
-            // Eliminar asignaciones previas de grupos de esta gestión
+            // Eliminar asignaciones previas
             $gruposExistentes = DB::table('grupos')
                 ->where('gestion', $gestion)
                 ->pluck('id')
@@ -164,19 +164,17 @@ class GrupoController extends Controller
 
             $aulas    = DB::table('aulas')->orderBy('id')->get()->values();
             $horarios = DB::table('horarios')->orderBy('id')->get()->values();
-            $totalGrupos = $cantidadGrupos;
 
-            // Distribuir grupos en 3 turnos: mañana, tarde, noche
-            // Cada turno usa hasta 4 horarios consecutivos del arreglo
-            $porTurno = (int) ceil($totalGrupos / 3);
+            $porTurno    = (int) ceil($cantidadGrupos / 3);
+            $gruposCreados  = [];
+            $detalle        = [];
+            $gruposPorTurno = ['manana' => [], 'tarde' => [], 'noche' => []];
 
-            $gruposCreados = [];
-            $detalle = [];
-
-            for ($i = 0; $i < $totalGrupos; $i++) {
-                $turnoIndex  = (int) floor($i / $porTurno); // 0=mañana, 1=tarde, 2=noche
-                $posEnTurno  = $i % $porTurno;
-
+            // Crear grupos con la misma distribución por bloques de turno
+            // y clasificarlos según el horario real asignado
+            for ($i = 0; $i < $cantidadGrupos; $i++) {
+                $turnoIndex   = (int) floor($i / $porTurno);
+                $posEnTurno   = $i % $porTurno;
                 $horarioIndex = ($turnoIndex * 4) + ($posEnTurno % 4);
                 if ($horarioIndex >= $horarios->count()) {
                     $horarioIndex = $horarios->count() - 1;
@@ -199,16 +197,71 @@ class GrupoController extends Controller
                     'aula_id'    => $aula->id,
                     'horario_id' => $horario->id,
                 ];
+
+                // Clasificar el grupo según el turno real del horario
+                $hora = (int) explode(':', $horario->horario_ini)[0];
+                if ($hora < 13) {
+                    $gruposPorTurno['manana'][] = $grupoId;
+                } elseif ($hora < 18) {
+                    $gruposPorTurno['tarde'][] = $grupoId;
+                } else {
+                    $gruposPorTurno['noche'][] = $grupoId;
+                }
             }
 
-            // Asignar postulantes de forma equitativa (round-robin)
-            $pivots = [];
-            foreach ($postulaciones as $index => $postulacionId) {
-                $grupoId = $gruposCreados[$index % $cantidadGrupos];
-                $pivots[] = [
-                    'grupo_id'       => $grupoId,
-                    'postulacion_id' => $postulacionId,
-                ];
+            // Clasificar postulaciones por turno preferido
+            $grouped = $postulaciones->groupBy('turno_preferido');
+            $byPref  = [
+                'manana' => $grouped->get('manana', collect())->pluck('id')->toArray(),
+                'tarde'  => $grouped->get('tarde',  collect())->pluck('id')->toArray(),
+                'noche'  => $grouped->get('noche',  collect())->pluck('id')->toArray(),
+            ];
+
+            // Asignar respetando turno preferido con overflow al siguiente turno disponible
+            // Orden de fallback: manana→tarde→noche, tarde→noche→manana, noche→manana→tarde
+            $fallbackOrder = [
+                'manana' => ['manana', 'tarde', 'noche'],
+                'tarde'  => ['tarde', 'noche', 'manana'],
+                'noche'  => ['noche', 'manana', 'tarde'],
+            ];
+
+            $capacidad = array_fill_keys($gruposCreados, 0);
+            $pivots    = [];
+
+            foreach ($fallbackOrder as $turno => $fallbacks) {
+                $postIds = $byPref[$turno];
+                if (empty($postIds)) continue;
+
+                // Lista de grupos en orden de preferencia
+                $gruposOrden = [];
+                foreach ($fallbacks as $fb) {
+                    foreach ($gruposPorTurno[$fb] as $gId) {
+                        $gruposOrden[] = $gId;
+                    }
+                }
+                if (empty($gruposOrden)) continue;
+
+                $nGrupos = count($gruposOrden);
+                $gIdx    = 0;
+
+                foreach ($postIds as $postId) {
+                    $asignado = false;
+                    for ($a = 0; $a < $nGrupos; $a++) {
+                        $idx = ($gIdx + $a) % $nGrupos;
+                        $gId = $gruposOrden[$idx];
+                        if ($capacidad[$gId] < 70) {
+                            $pivots[]         = ['grupo_id' => $gId, 'postulacion_id' => $postId];
+                            $capacidad[$gId]++;
+                            $gIdx             = ($idx + 1) % $nGrupos;
+                            $asignado         = true;
+                            break;
+                        }
+                    }
+                    if (!$asignado) {
+                        // Todos los grupos llenos — asignar al primero (no debería ocurrir)
+                        $pivots[] = ['grupo_id' => $gruposOrden[0], 'postulacion_id' => $postId];
+                    }
+                }
             }
 
             foreach (array_chunk($pivots, 500) as $chunk) {

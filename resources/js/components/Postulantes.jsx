@@ -5,7 +5,7 @@ import autoTable from 'jspdf-autotable';
 const FORM_VACIO = {
     ci: '', nombres: '', apellidos: '', fecha_nac: '', genero: 'M',
     telefono: '', correo: '', direccion: '', colegio_procedencia: '', ciudad: '',
-    carrera_opcion1_id: '', carrera_opcion2_id: '',
+    carrera_opcion1_id: '', carrera_opcion2_id: '', turno_preferido: 'manana',
 };
 
 /* ─── Row hover helper ─── */
@@ -246,14 +246,14 @@ function Postulantes({ onBack, user }) {
                                     <Field label="Colegio de Procedencia" name="colegio_procedencia" col="col-md-4" />
                                 </div>
 
-                                {/* Opciones de Carrera */}
+                                {/* Opciones de Carrera y Turno */}
                                 {!editando && (
-                                    <>
+                                    <div>
                                         <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1a3a6b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.75rem', borderBottom: '2px solid #eff6ff', paddingBottom: '0.4rem', marginTop: '0.5rem' }}>
-                                            🎓 Opciones de Carrera
+                                            🎓 Opciones de Carrera y Turno
                                         </p>
                                         <div className="row">
-                                            <div className="col-md-6">
+                                            <div className="col-md-5">
                                                 <div style={{ marginBottom: '0.85rem' }}>
                                                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '0.3rem' }}>
                                                         Carrera Opción 1 <span style={{ color: '#ef4444' }}>*</span>
@@ -264,7 +264,7 @@ function Postulantes({ onBack, user }) {
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div className="col-md-6">
+                                            <div className="col-md-5">
                                                 <div style={{ marginBottom: '0.85rem' }}>
                                                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '0.3rem' }}>
                                                         Carrera Opción 2 <span style={{ color: '#ef4444' }}>*</span>
@@ -275,8 +275,20 @@ function Postulantes({ onBack, user }) {
                                                     </select>
                                                 </div>
                                             </div>
+                                            <div className="col-md-2">
+                                                <div style={{ marginBottom: '0.85rem' }}>
+                                                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: '0.3rem' }}>
+                                                        Turno Preferido
+                                                    </label>
+                                                    <select name="turno_preferido" className="form-select" style={{ borderRadius: 7, borderColor: '#e2e8f0', fontSize: '0.88rem', height: 38 }} value={form.turno_preferido} onChange={handleChange}>
+                                                        <option value="manana">🌅 Mañana</option>
+                                                        <option value="tarde">🌇 Tarde</option>
+                                                        <option value="noche">🌙 Noche</option>
+                                                    </select>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </>
+                                    </div>
                                 )}
 
                                 <div className="d-flex gap-2 mt-1">

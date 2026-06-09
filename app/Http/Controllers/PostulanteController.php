@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Services\BitacoraService;
+use App\Helpers\PasswordHelper;
 
 /**
  * CU3 - GESTIONAR POSTULANTES
@@ -110,13 +111,15 @@ class PostulanteController extends Controller
                 }
 
                 // PASO 2: Crear usuario
+                $password = PasswordHelper::generar();
                 $usuario_id = DB::table('usuarios')->insertGetId([
-                    'rol_id'     => 3,
-                    'username'   => $request->correo,
-                    'password'   => $request->ci,
-                    'correo'     => $request->correo,
-                    'estado'     => true,
-                    'created_at' => now(),
+                    'rol_id'         => 3,
+                    'username'       => $request->correo,
+                    'password'       => $password,
+                    'password_texto' => $password,
+                    'correo'         => $request->correo,
+                    'estado'         => true,
+                    'created_at'     => now(),
                 ]);
 
                 // PASO 3: Crear postulante con usuario_id
@@ -142,6 +145,7 @@ class PostulanteController extends Controller
                     'carrera_asignada_id' => $carreraAsignadaId,
                     'gestion'             => date('Y'),
                     'estado_admision'     => 'EN PROCESO',
+                    'turno_preferido'     => $request->turno_preferido ?? 'manana',
                 ]);
 
                 BitacoraService::registrar(
