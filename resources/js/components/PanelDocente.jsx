@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ModalCambiarPassword from './ModalCambiarPassword';
 
 /**
  * CU12 - GESTIONAR NOTAS (Panel Docente)
@@ -20,6 +21,7 @@ export default function PanelDocente({ user, onLogout }) {
     const [guardando, setGuardando] = useState(false);
     const [mensaje, setMensaje]     = useState(null);
     const [hoverLogout, setHoverLogout] = useState(false);
+    const [modalPwd, setModalPwd]       = useState(false);
 
     useEffect(() => { cargarDatos(); }, []);
 
@@ -128,6 +130,14 @@ export default function PanelDocente({ user, onLogout }) {
                         <div style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>{user.username}</div>
                         <div style={{ color: '#93c5fd', fontSize: 11 }}>{user.correo}</div>
                     </div>
+                    <button
+                        onClick={() => setModalPwd(true)}
+                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, color: '#fff', padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+                        title="Cambiar contraseña"
+                    >
+                        <span className="d-none d-sm-inline">🔒 Contraseña</span>
+                        <span className="d-sm-none">🔒</span>
+                    </button>
                     <button
                         onClick={onLogout}
                         onMouseEnter={() => setHoverLogout(true)}
@@ -252,6 +262,8 @@ export default function PanelDocente({ user, onLogout }) {
                     </div>
                 </div>
             )}
+
+            {modalPwd && <ModalCambiarPassword userId={user.id} onClose={() => setModalPwd(false)} />}
         </div>
     );
 }

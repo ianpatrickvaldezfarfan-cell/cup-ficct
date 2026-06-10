@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ModalCambiarPassword from './ModalCambiarPassword';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ function SeccionDatos({ userId, onVolver }) {
     const [form, setForm]     = useState({});
     const [msg, setMsg]       = useState(null);
     const [saving, setSaving] = useState(false);
+    const [modalPwd, setModalPwd] = useState(false);
 
     useEffect(() => {
         fetch('/api/postulante/mis-datos', { headers: { 'Accept': 'application/json', 'X-User-Id': userId } })
@@ -111,11 +113,17 @@ function SeccionDatos({ userId, onVolver }) {
                             {msg.texto}
                         </div>
                     )}
-                    <button type="submit" disabled={saving} style={{ background: '#f59e0b', border: 'none', borderRadius: 8, padding: '10px 28px', fontWeight: 700, color: '#1a3a6b', cursor: saving ? 'not-allowed' : 'pointer', fontSize: 14 }}>
-                        {saving ? 'Guardando...' : '💾 Guardar cambios'}
-                    </button>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button type="submit" disabled={saving} style={{ background: '#f59e0b', border: 'none', borderRadius: 8, padding: '10px 28px', fontWeight: 700, color: '#1a3a6b', cursor: saving ? 'not-allowed' : 'pointer', fontSize: 14 }}>
+                            {saving ? 'Guardando...' : '💾 Guardar cambios'}
+                        </button>
+                        <button type="button" onClick={() => setModalPwd(true)} style={{ background: 'transparent', border: '2px solid #2563eb', borderRadius: 8, padding: '9px 20px', fontWeight: 700, color: '#2563eb', cursor: 'pointer', fontSize: 14 }}>
+                            🔒 Cambiar Contraseña
+                        </button>
+                    </div>
                 </form>
             </div>
+            {modalPwd && <ModalCambiarPassword userId={userId} onClose={() => setModalPwd(false)} />}
         </div>
     );
 }

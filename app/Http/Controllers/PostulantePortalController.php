@@ -281,4 +281,48 @@ class PostulantePortalController extends Controller
             'turno_preferido'   => $postulacion->turno_preferido ?? 'manana',
         ]);
     }
+
+    public function cambiarPassword(Request $request)
+    {
+        $request->validate([
+            'password_actual'       => 'required|string',
+            'password_nueva'        => 'required|string|min:8',
+            'password_confirmacion' => 'required|string',
+        ]);
+
+        $userId  = $request->header('X-User-Id');
+        $usuario = DB::table('usuarios')->where('id', $userId)->first();
+
+        if (!$usuario) {
+            return response()->json(['success' => false, 'mensaje' => 'Usuario no encontrado'], 404);
+        }
+
+        if ($request->password_actual !== $usuario->password) {
+            return response()->json(['success' => false, 'mensaje' => 'La contraseña actual es incorrecta'], 422);
+        }
+
+        if ($request->password_nueva !== $request->password_confirmacion) {
+            return response()->json(['success' => false, 'mensaje' => 'Las contraseñas no coinciden'], 422);
+        }
+
+        $pwd = $request->password_nueva;
+        $cumple = strlen($pwd) >= 8
+            && preg_match('/[A-Z]/', $pwd)
+            && preg_match('/[a-z]/', $pwd)
+            && preg_match('/[0-9]/', $pwd)
+            && preg_match('/[@#$%&*!]/', $pwd);
+
+        if (!$cumple) {
+            return response()->json(['success' => false, 'mensaje' => 'La nueva contraseña no cumple los requisitos de seguridad'], 422);
+        }
+
+        DB::table('usuarios')->where('id', $userId)->update([
+            'password'       => $pwd,
+            'password_texto' => $pwd,
+        ]);
+
+        BitacoraService::registrar($userId, 'UPDATE', 'usuarios', 'Cambio de contraseña por el usuario');
+
+        return response()->json(['success' => true, 'mensaje' => 'Contraseña actualizada correctamente']);
+    }
 }
