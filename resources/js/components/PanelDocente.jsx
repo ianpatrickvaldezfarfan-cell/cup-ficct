@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ModalCambiarPassword from './ModalCambiarPassword';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 /**
  * CU12 - GESTIONAR NOTAS (Panel Docente)
@@ -130,49 +130,59 @@ function SeccionMisDatos({ userId, user, onVolver }) {
 
     const exportarMisDatosCSV = () => {
         if (!datos) return;
-        const headers = ['CI', 'Nombres', 'Apellidos', 'Correo', 'Profesion', 'Maestria', 'Diplomado'];
-        const fila = [
-            datos.username || '',
-            datos.nombres || '',
-            datos.apellidos || '',
-            datos.correo || '',
-            datos.profesion || '',
-            datos.tiene_maestria ? 'Si' : 'No',
-            datos.tiene_diplomado ? 'Si' : 'No',
-        ];
-        const csv = '﻿' + headers.join(',') + '\n' +
-            fila.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url; link.download = 'mis_datos_docente.csv'; link.click();
-        URL.revokeObjectURL(url);
+        try {
+            const headers = ['CI', 'Nombres', 'Apellidos', 'Correo', 'Profesion', 'Maestria', 'Diplomado'];
+            const fila = [
+                datos.username || '',
+                datos.nombres || '',
+                datos.apellidos || '',
+                datos.correo || '',
+                datos.profesion || '',
+                datos.tiene_maestria ? 'Si' : 'No',
+                datos.tiene_diplomado ? 'Si' : 'No',
+            ];
+            const csv = '﻿' + headers.join(',') + '\n' +
+                fila.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url; link.download = 'mis_datos_docente.csv'; link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error generando CSV:', error);
+            alert('Error al generar el CSV. Intenta de nuevo.');
+        }
     };
 
     const exportarMisDatosPDF = () => {
         if (!datos) return;
-        const doc = new jsPDF();
-        doc.setFontSize(16); doc.setTextColor(26, 58, 107);
-        doc.text('CUP-FICCT - Mis Datos Personales', 14, 15);
-        doc.setFontSize(10); doc.setTextColor(100, 116, 139);
-        doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
-        doc.autoTable({
-            startY: 30,
-            head: [['Campo', 'Valor']],
-            body: [
-                ['CI',         datos.username || ''],
-                ['Nombres',    datos.nombres || ''],
-                ['Apellidos',  datos.apellidos || ''],
-                ['Correo',     datos.correo || ''],
-                ['Profesion',  datos.profesion || ''],
-                ['Maestria',   datos.tiene_maestria ? 'Si' : 'No'],
-                ['Diplomado',  datos.tiene_diplomado ? 'Si' : 'No'],
-            ],
-            headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            styles: { fontSize: 9 },
-        });
-        doc.save('mis_datos_docente.pdf');
+        try {
+            const doc = new jsPDF();
+            doc.setFontSize(16); doc.setTextColor(26, 58, 107);
+            doc.text('CUP-FICCT - Mis Datos Personales', 14, 15);
+            doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+            doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
+            autoTable(doc, {
+                startY: 30,
+                head: [['Campo', 'Valor']],
+                body: [
+                    ['CI',         datos.username || ''],
+                    ['Nombres',    datos.nombres || ''],
+                    ['Apellidos',  datos.apellidos || ''],
+                    ['Correo',     datos.correo || ''],
+                    ['Profesion',  datos.profesion || ''],
+                    ['Maestria',   datos.tiene_maestria ? 'Si' : 'No'],
+                    ['Diplomado',  datos.tiene_diplomado ? 'Si' : 'No'],
+                ],
+                headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                styles: { fontSize: 9 },
+            });
+            doc.save('mis_datos_docente.pdf');
+        } catch (error) {
+            console.error('Error generando PDF:', error);
+            alert('Error al generar el PDF. Intenta de nuevo.');
+        }
     };
 
     const labelStyle = { fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: 4 };
@@ -319,50 +329,60 @@ export default function PanelDocente({ user, onLogout }) {
     // Export
     const exportarHorarioCSV = () => {
         if (!grupos || grupos.length === 0) return;
-        const headers = ['Grupo', 'Materia', 'Aula', 'Horario', 'Dias', 'Turno', 'Estudiantes'];
-        const filas = grupos.map(g => [
-            g.grupo_nombre || '',
-            g.materia || '',
-            g.aula || '',
-            (g.horario_ini || '') + ' - ' + (g.horario_fin || ''),
-            g.dias || '',
-            g.turno || '',
-            g.total_estudiantes ?? '',
-        ]);
-        const csv = '﻿' + headers.join(',') + '\n' +
-            filas.map(f => f.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url; link.download = 'mi_horario_docente.csv'; link.click();
-        URL.revokeObjectURL(url);
-    };
-
-    const exportarHorarioPDF = () => {
-        if (!grupos || grupos.length === 0) return;
-        const doc = new jsPDF('landscape');
-        doc.setFontSize(16); doc.setTextColor(26, 58, 107);
-        doc.text('CUP-FICCT - Mi Horario de Clases', 14, 15);
-        doc.setFontSize(10); doc.setTextColor(100, 116, 139);
-        doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
-        doc.text('Docente: ' + user.username, 14, 28);
-        doc.autoTable({
-            startY: 35,
-            head: [['Grupo', 'Materia', 'Aula', 'Horario', 'Dias', 'Turno', 'Estudiantes']],
-            body: grupos.map(g => [
+        try {
+            const headers = ['Grupo', 'Materia', 'Aula', 'Horario', 'Dias', 'Turno', 'Estudiantes'];
+            const filas = grupos.map(g => [
                 g.grupo_nombre || '',
                 g.materia || '',
                 g.aula || '',
                 (g.horario_ini || '') + ' - ' + (g.horario_fin || ''),
                 g.dias || '',
                 g.turno || '',
-                String(g.total_estudiantes ?? '0'),
-            ]),
-            headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            styles: { fontSize: 8 },
-        });
-        doc.save('mi_horario_docente.pdf');
+                g.total_estudiantes ?? '',
+            ]);
+            const csv = '﻿' + headers.join(',') + '\n' +
+                filas.map(f => f.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url; link.download = 'mi_horario_docente.csv'; link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error generando CSV:', error);
+            alert('Error al generar el CSV. Intenta de nuevo.');
+        }
+    };
+
+    const exportarHorarioPDF = () => {
+        if (!grupos || grupos.length === 0) return;
+        try {
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(16); doc.setTextColor(26, 58, 107);
+            doc.text('CUP-FICCT - Mi Horario de Clases', 14, 15);
+            doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+            doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
+            doc.text('Docente: ' + user.username, 14, 28);
+            autoTable(doc, {
+                startY: 35,
+                head: [['Grupo', 'Materia', 'Aula', 'Horario', 'Dias', 'Turno', 'Estudiantes']],
+                body: grupos.map(g => [
+                    g.grupo_nombre || '',
+                    g.materia || '',
+                    g.aula || '',
+                    (g.horario_ini || '') + ' - ' + (g.horario_fin || ''),
+                    g.dias || '',
+                    g.turno || '',
+                    String(g.total_estudiantes ?? '0'),
+                ]),
+                headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                styles: { fontSize: 8 },
+            });
+            doc.save('mi_horario_docente.pdf');
+        } catch (error) {
+            console.error('Error generando PDF:', error);
+            alert('Error al generar el PDF. Intenta de nuevo.');
+        }
     };
 
     const totalMaterias = new Set(grupos.map(g => g.materia)).size;
@@ -693,74 +713,84 @@ function GrupoCard({ grupo, abierto, onToggle, onEditarNota, thStyle }) {
     const exportarNotasGrupoCSV = (e) => {
         e.stopPropagation();
         if (!grupo.postulantes || grupo.postulantes.length === 0) return;
-        const headers = ['CI', 'Nombres', 'Apellidos', 'Materia', 'Nota 1', 'Nota 2', 'Nota 3', 'Promedio', 'Estado'];
-        const filas = grupo.postulantes.map(p => [
-            p.ci || '',
-            p.nombres || '',
-            p.apellidos || '',
-            grupo.materia || '',
-            p.nota1 ?? 'Pendiente',
-            p.nota2 ?? 'Pendiente',
-            p.nota3 ?? 'Pendiente',
-            p.nota_final ?? 'Pendiente',
-            p.estado_materia || 'Pendiente',
-        ]);
-        const aprobados  = grupo.postulantes.filter(p => p.estado_materia === 'APROBADO').length;
-        const reprobados = grupo.postulantes.filter(p => p.estado_materia === 'REPROBADO').length;
-        filas.push(['', '', '', 'TOTAL APROBADOS:',  String(aprobados),  '', '', '', '']);
-        filas.push(['', '', '', 'TOTAL REPROBADOS:', String(reprobados), '', '', '', '']);
-        const csv = '﻿' + headers.join(',') + '\n' +
-            filas.map(f => f.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        const nombre = (grupo.grupo_nombre || 'grupo').replace(/\s+/g, '_');
-        const materia = (grupo.materia || 'materia').replace(/\s+/g, '_');
-        link.href = url; link.download = `notas_${nombre}_${materia}.csv`; link.click();
-        URL.revokeObjectURL(url);
+        try {
+            const headers = ['CI', 'Nombres', 'Apellidos', 'Materia', 'Nota 1', 'Nota 2', 'Nota 3', 'Promedio', 'Estado'];
+            const filas = grupo.postulantes.map(p => [
+                p.ci || '',
+                p.nombres || '',
+                p.apellidos || '',
+                grupo.materia || '',
+                p.nota1 ?? 'Pendiente',
+                p.nota2 ?? 'Pendiente',
+                p.nota3 ?? 'Pendiente',
+                p.nota_final ?? 'Pendiente',
+                p.estado_materia || 'Pendiente',
+            ]);
+            const aprobados  = grupo.postulantes.filter(p => p.estado_materia === 'APROBADO').length;
+            const reprobados = grupo.postulantes.filter(p => p.estado_materia === 'REPROBADO').length;
+            filas.push(['', '', '', 'TOTAL APROBADOS:',  String(aprobados),  '', '', '', '']);
+            filas.push(['', '', '', 'TOTAL REPROBADOS:', String(reprobados), '', '', '', '']);
+            const csv = '﻿' + headers.join(',') + '\n' +
+                filas.map(f => f.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const nombre = (grupo.grupo_nombre || 'grupo').replace(/\s+/g, '_');
+            const materia = (grupo.materia || 'materia').replace(/\s+/g, '_');
+            link.href = url; link.download = `notas_${nombre}_${materia}.csv`; link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error generando CSV:', error);
+            alert('Error al generar el CSV. Intenta de nuevo.');
+        }
     };
 
     const exportarNotasGrupoPDF = (e) => {
         e.stopPropagation();
         if (!grupo.postulantes || grupo.postulantes.length === 0) return;
-        const doc = new jsPDF('landscape');
-        doc.setFontSize(14); doc.setTextColor(26, 58, 107);
-        doc.text('CUP-FICCT - Notas por Grupo', 14, 15);
-        doc.setFontSize(10); doc.setTextColor(100, 116, 139);
-        doc.text('Grupo: '    + (grupo.grupo_nombre || ''), 14, 22);
-        doc.text('Materia: '  + (grupo.materia || ''),      14, 28);
-        doc.text('Aula: '     + (grupo.aula || ''),         100, 28);
-        doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 34);
-        const aprobados  = grupo.postulantes.filter(p => p.estado_materia === 'APROBADO').length;
-        const reprobados = grupo.postulantes.filter(p => p.estado_materia === 'REPROBADO').length;
-        doc.text('Total: ' + grupo.postulantes.length + '  |  Aprobados: ' + aprobados + '  |  Reprobados: ' + reprobados, 14, 40);
-        doc.autoTable({
-            startY: 46,
-            head: [['#', 'CI', 'Nombres', 'Apellidos', 'Nota 1', 'Nota 2', 'Nota 3', 'Promedio', 'Estado']],
-            body: grupo.postulantes.map((p, i) => [
-                String(i + 1),
-                p.ci || '',
-                p.nombres || '',
-                p.apellidos || '',
-                p.nota1 ?? '—',
-                p.nota2 ?? '—',
-                p.nota3 ?? '—',
-                p.nota_final ?? '—',
-                p.estado_materia || 'Pendiente',
-            ]),
-            headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            styles: { fontSize: 8 },
-            didParseCell: function(data) {
-                if (data.column.index === 8) {
-                    if (data.cell.raw === 'APROBADO')  { data.cell.styles.textColor = [22, 163, 74];  data.cell.styles.fontStyle = 'bold'; }
-                    if (data.cell.raw === 'REPROBADO') { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
-                }
-            },
-        });
-        const nombre = (grupo.grupo_nombre || 'grupo').replace(/\s+/g, '_');
-        const materia = (grupo.materia || 'materia').replace(/\s+/g, '_');
-        doc.save(`notas_${nombre}_${materia}.pdf`);
+        try {
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(14); doc.setTextColor(26, 58, 107);
+            doc.text('CUP-FICCT - Notas por Grupo', 14, 15);
+            doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+            doc.text('Grupo: '    + (grupo.grupo_nombre || ''), 14, 22);
+            doc.text('Materia: '  + (grupo.materia || ''),      14, 28);
+            doc.text('Aula: '     + (grupo.aula || ''),         100, 28);
+            doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 34);
+            const aprobados  = grupo.postulantes.filter(p => p.estado_materia === 'APROBADO').length;
+            const reprobados = grupo.postulantes.filter(p => p.estado_materia === 'REPROBADO').length;
+            doc.text('Total: ' + grupo.postulantes.length + '  |  Aprobados: ' + aprobados + '  |  Reprobados: ' + reprobados, 14, 40);
+            autoTable(doc, {
+                startY: 46,
+                head: [['#', 'CI', 'Nombres', 'Apellidos', 'Nota 1', 'Nota 2', 'Nota 3', 'Promedio', 'Estado']],
+                body: grupo.postulantes.map((p, i) => [
+                    String(i + 1),
+                    p.ci || '',
+                    p.nombres || '',
+                    p.apellidos || '',
+                    p.nota1 ?? '—',
+                    p.nota2 ?? '—',
+                    p.nota3 ?? '—',
+                    p.nota_final ?? '—',
+                    p.estado_materia || 'Pendiente',
+                ]),
+                headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                styles: { fontSize: 8 },
+                didParseCell: function(data) {
+                    if (data.column.index === 8) {
+                        if (data.cell.raw === 'APROBADO')  { data.cell.styles.textColor = [22, 163, 74];  data.cell.styles.fontStyle = 'bold'; }
+                        if (data.cell.raw === 'REPROBADO') { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
+                    }
+                },
+            });
+            const nombre = (grupo.grupo_nombre || 'grupo').replace(/\s+/g, '_');
+            const materia = (grupo.materia || 'materia').replace(/\s+/g, '_');
+            doc.save(`notas_${nombre}_${materia}.pdf`);
+        } catch (error) {
+            console.error('Error generando PDF:', error);
+            alert('Error al generar el PDF. Intenta de nuevo.');
+        }
     };
 
     const btnMini = (bg, label, handler) => (

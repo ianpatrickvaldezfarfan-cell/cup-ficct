@@ -98,7 +98,7 @@ export default function Postulaciones({ onBack }) {
     /* ─── Export using the active filter ─── */
     const exportarCSVPostulaciones = () => {
         const datos = filtradas;
-        const headers = ['CI', 'Nombres', 'Apellidos', 'Carrera Asignada', 'Gestion', 'Estado Admision'];
+        const headers = ['CI', 'Nombres', 'Apellidos', 'Carrera Asignada', 'Gestión', 'Estado Admisión'];
         const filas = datos.map(p => [
             p.ci || '',
             p.nombres || '',

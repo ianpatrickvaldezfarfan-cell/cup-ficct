@@ -112,7 +112,7 @@ function Postulantes({ onBack, user }) {
     };
 
     const exportarCSV = () => {
-        const cabecera = ['CI','Nombres','Apellidos','Genero','Telefono','Correo','Ciudad','Colegio_Procedencia'];
+        const cabecera = ['CI','Nombres','Apellidos','Género','Teléfono','Correo','Ciudad','Colegio_Procedencia'];
         const filas = postulantes.map(p => [
             p.ci, p.nombres, p.apellidos,
             p.genero === 'M' ? 'Masculino' : p.genero === 'F' ? 'Femenino' : 'Otro',
@@ -135,7 +135,7 @@ function Postulantes({ onBack, user }) {
         doc.text(`Total: ${postulantes.length} postulantes`, 14, 32);
         autoTable(doc, {
             startY: 38,
-            head: [['CI','Nombres','Apellidos','Genero','Telefono','Correo','Ciudad']],
+            head: [['CI','Nombres','Apellidos','Género','Teléfono','Correo','Ciudad']],
             body: postulantes.map(p => [
                 p.ci, p.nombres, p.apellidos,
                 p.genero === 'M' ? 'Masc.' : p.genero === 'F' ? 'Fem.' : 'Otro',

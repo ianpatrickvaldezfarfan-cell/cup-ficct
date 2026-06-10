@@ -120,7 +120,7 @@ export default function Grupos({ onBack, user }) {
     const turnoTexto = t => t === 'Manana' ? 'Mañana' : t === 'Tarde' ? 'Tarde' : t === 'Noche' ? 'Noche' : '—';
 
     const exportarCSV = () => {
-        const cabecera = ['Grupo','Gestion','Estudiantes','Aula','Horario','Turno'];
+        const cabecera = ['Grupo','Gestión','Estudiantes','Aula','Horario','Turno'];
         const filas = gruposFiltrados.map(g => [g.nombre, g.gestion, g.total_estudiantes, g.aula ?? '—', g.horario_ini ? `${g.horario_ini}-${g.horario_fin} (${g.dias})` : '—', turnoTexto(g.turno)]);
         const csv = [cabecera, ...filas].map(f => f.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
         const a = document.createElement('a');

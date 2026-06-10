@@ -163,7 +163,7 @@ function Docentes({ user, onBack }) {
     const abrirNuevo = () => { cerrarForm(); setMostrarForm(true); };
 
     const exportarCSV = () => {
-        const cabecera = ['CI','Nombres','Apellidos','Profesion','Maestria','Diplomado','Correo'];
+        const cabecera = ['CI','Nombres','Apellidos','Profesión','Maestría','Diplomado','Correo'];
         const filas = docentes.map(d => [d.ci, d.nombres, d.apellidos, d.profesion, d.tiene_maestria ? 'Si' : 'No', d.tiene_diplomado ? 'Si' : 'No', d.correo]);
         const csv = [cabecera, ...filas].map(f => f.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
         const a = document.createElement('a');
@@ -178,7 +178,7 @@ function Docentes({ user, onBack }) {
         doc.setFontSize(10); doc.setTextColor(100); doc.text(`Generado: ${fecha}`, 14, 26); doc.text(`Total: ${docentes.length} docentes`, 14, 32);
         autoTable(doc, {
             startY: 38,
-            head: [['CI','Nombres','Apellidos','Profesion','Maestria','Diplomado','Correo']],
+            head: [['CI','Nombres','Apellidos','Profesión','Maestría','Diplomado','Correo']],
             body: docentes.map(d => [d.ci, d.nombres, d.apellidos, d.profesion, d.tiene_maestria ? 'Si' : 'No', d.tiene_diplomado ? 'Si' : 'No', d.correo]),
             headStyles: { fillColor: [26, 58, 107], fontSize: 8 },
             bodyStyles: { fontSize: 8 },
