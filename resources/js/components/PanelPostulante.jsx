@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ModalCambiarPassword from './ModalCambiarPassword';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +46,25 @@ function Volver({ onVolver, titulo }) {
 const thStyle = { backgroundColor: '#1a3a6b', color: '#fff', fontWeight: 600, fontSize: 13, padding: '10px 14px', whiteSpace: 'nowrap' };
 const tdStyle = { padding: '10px 14px', fontSize: 13, verticalAlign: 'middle' };
 
+function BotonesExportar({ onCSV, onPDF }) {
+    return (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
+            <button
+                onClick={onCSV}
+                style={{ backgroundColor: '#16a34a', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+            >
+                ⬇ CSV
+            </button>
+            <button
+                onClick={onPDF}
+                style={{ backgroundColor: '#dc2626', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+            >
+                ⬇ PDF
+            </button>
+        </div>
+    );
+}
+
 // ─── Secciones ────────────────────────────────────────────────────────────────
 
 function SeccionDatos({ userId, onVolver }) {
@@ -74,6 +95,53 @@ function SeccionDatos({ userId, onVolver }) {
         finally { setSaving(false); }
     }
 
+    const exportarDatosCSV = () => {
+        if (!datos) return;
+        const headers = ['CI', 'Nombres', 'Apellidos', 'Fecha Nacimiento', 'Genero', 'Telefono', 'Correo', 'Direccion', 'Ciudad', 'Colegio Procedencia'];
+        const fila = [
+            datos.ci || '', datos.nombres || '', datos.apellidos || '',
+            datos.fecha_nac || '', datos.genero || '', datos.telefono || '',
+            datos.correo || '', datos.direccion || '', datos.ciudad || '',
+            datos.colegio_procedencia || '',
+        ];
+        const csv = '﻿' + headers.join(',') + '\n' +
+            fila.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = 'mis_datos_personales.csv'; link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const exportarDatosPDF = () => {
+        if (!datos) return;
+        const doc = new jsPDF();
+        doc.setFontSize(16); doc.setTextColor(26, 58, 107);
+        doc.text('CUP-FICCT - Mis Datos Personales', 14, 15);
+        doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+        doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
+        doc.autoTable({
+            startY: 30,
+            head: [['Campo', 'Valor']],
+            body: [
+                ['CI', datos.ci || ''],
+                ['Nombres', datos.nombres || ''],
+                ['Apellidos', datos.apellidos || ''],
+                ['Fecha Nacimiento', datos.fecha_nac || ''],
+                ['Genero', datos.genero || ''],
+                ['Telefono', datos.telefono || ''],
+                ['Correo', datos.correo || ''],
+                ['Direccion', datos.direccion || ''],
+                ['Ciudad', datos.ciudad || ''],
+                ['Colegio', datos.colegio_procedencia || ''],
+            ],
+            headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            styles: { fontSize: 9 },
+        });
+        doc.save('mis_datos_personales.pdf');
+    };
+
     const campo = (label, key, editable = true, tipo = 'text') => (
         <div className="col-md-6 mb-3" key={key}>
             <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: 4 }}>
@@ -95,6 +163,7 @@ function SeccionDatos({ userId, onVolver }) {
         <div>
             <Volver onVolver={onVolver} titulo="Mis Datos Personales" />
             <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', padding: '24px 28px', maxWidth: 760 }}>
+                <BotonesExportar onCSV={exportarDatosCSV} onPDF={exportarDatosPDF} />
                 <form onSubmit={guardar}>
                     <div className="row">
                         {campo('CI (no modificable)', 'ci', false)}
@@ -137,6 +206,47 @@ function SeccionPostulacion({ userId, onVolver }) {
             .then(r => r.ok ? r.json() : null).then(d => { if (d) setData(d); else setErr(true); }).catch(() => setErr(true));
     }, []);
 
+    const exportarPostulacionCSV = () => {
+        if (!data) return;
+        const headers = ['Gestion', 'Carrera Opcion 1', 'Carrera Opcion 2', 'Carrera Asignada', 'Estado Admision', 'Turno Preferido'];
+        const fila = [
+            data.gestion || '', data.carrera_opcion1 || '', data.carrera_opcion2 || '',
+            data.carrera_asignada || '', data.estado_admision || '', data.turno_preferido || '',
+        ];
+        const csv = '﻿' + headers.join(',') + '\n' +
+            fila.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = 'mi_postulacion.csv'; link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const exportarPostulacionPDF = () => {
+        if (!data) return;
+        const doc = new jsPDF();
+        doc.setFontSize(16); doc.setTextColor(26, 58, 107);
+        doc.text('CUP-FICCT - Mi Postulacion', 14, 15);
+        doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+        doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
+        doc.autoTable({
+            startY: 30,
+            head: [['Campo', 'Valor']],
+            body: [
+                ['Gestion', data.gestion || ''],
+                ['Carrera Opcion 1', data.carrera_opcion1 || ''],
+                ['Carrera Opcion 2', data.carrera_opcion2 || ''],
+                ['Carrera Asignada', data.carrera_asignada || ''],
+                ['Estado Admision', data.estado_admision || ''],
+                ['Turno Preferido', data.turno_preferido || ''],
+            ],
+            headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            styles: { fontSize: 9 },
+        });
+        doc.save('mi_postulacion.pdf');
+    };
+
     const Fila = ({ label, valor, badge }) => (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
             <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>{label}</span>
@@ -152,6 +262,7 @@ function SeccionPostulacion({ userId, onVolver }) {
                 <div style={{ background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', color: '#94a3b8' }}>Sin postulación registrada.</div>
             ) : (
                 <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', padding: '24px 28px', maxWidth: 620 }}>
+                    <BotonesExportar onCSV={exportarPostulacionCSV} onPDF={exportarPostulacionPDF} />
                     <Fila label="Gestión" valor={data.gestion} />
                     <Fila label="Carrera Opción 1" valor={data.carrera_opcion1} />
                     <Fila label="Carrera Opción 2" valor={data.carrera_opcion2} />
@@ -173,28 +284,65 @@ function SeccionDocumentos({ userId, onVolver }) {
     const [files, setFiles]   = useState({});
     const [showForm, setShowForm] = useState(false);
 
-    const tiposDoc = [
-        { key: 'documento_0', tipo: 'Certificado de Nacimiento' },
-        { key: 'documento_1', tipo: 'CI Anverso/Reverso' },
-        { key: 'documento_2', tipo: 'Fotografía Fondo Rojo' },
-        { key: 'documento_3', tipo: 'Título de Bachiller' },
-    ];
-
     function cargar() {
         fetch('/api/postulante/mis-documentos', { headers: { 'Accept': 'application/json', 'X-User-Id': userId } })
             .then(r => r.json()).then(d => setData(d)).catch(() => {});
     }
     useEffect(() => { cargar(); }, []);
 
-    const docMap = {};
-    (data?.documentos ?? []).forEach(d => { docMap[d.tipo] = d; });
+    const exportarDocumentosCSV = () => {
+        const docs = data?.documentos ?? [];
+        if (docs.length === 0) return;
+        const headers = ['Tipo Documento', 'Estado', 'URL'];
+        const filas = docs.map(doc => [
+            doc.tipo || '',
+            doc.url ? 'Entregado' : 'Pendiente',
+            doc.url || 'Sin documento',
+        ]);
+        const csv = '﻿' + headers.join(',') + '\n' +
+            filas.map(f => f.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = 'mis_documentos.csv'; link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const exportarDocumentosPDF = () => {
+        const docs = data?.documentos ?? [];
+        if (docs.length === 0) return;
+        const doc = new jsPDF();
+        doc.setFontSize(16); doc.setTextColor(26, 58, 107);
+        doc.text('CUP-FICCT - Mis Documentos', 14, 15);
+        doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+        doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
+        doc.autoTable({
+            startY: 30,
+            head: [['Tipo Documento', 'Estado']],
+            body: docs.map(d => [d.tipo || '', d.url ? 'Entregado' : 'Pendiente']),
+            headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            styles: { fontSize: 9 },
+            didParseCell: function(data) {
+                if (data.column.index === 1) {
+                    if (data.cell.raw === 'Entregado') {
+                        data.cell.styles.textColor = [22, 163, 74];
+                        data.cell.styles.fontStyle = 'bold';
+                    } else {
+                        data.cell.styles.textColor = [220, 38, 38];
+                    }
+                }
+            },
+        });
+        doc.save('mis_documentos.pdf');
+    };
 
     async function subirDocs(e) {
         e.preventDefault();
         setSubiendo(true); setMsg(null);
         const fd = new FormData();
         fd.append('postulacion_id', data?.postulacion_id ?? '');
-        tiposDoc.forEach(({ key }) => { if (files[key]) fd.append(key, files[key]); });
+        Object.entries(files).forEach(([key, file]) => { if (file) fd.append(key, file); });
         try {
             const res = await fetch('/api/registro/paso1b', { method: 'POST', headers: { 'Accept': 'application/json', 'X-User-Id': userId }, body: fd });
             const resp = await res.json();
@@ -205,19 +353,19 @@ function SeccionDocumentos({ userId, onVolver }) {
     }
 
     if (!data) return <Spinner />;
-    const hayPendientes = tiposDoc.some(({ tipo }) => !docMap[tipo]?.url);
+    const hayPendientes = (data.documentos ?? []).some(doc => !doc.url || doc.url.trim() === '');
 
     return (
         <div>
             <Volver onVolver={onVolver} titulo="Mis Documentos" />
+            <BotonesExportar onCSV={exportarDocumentosCSV} onPDF={exportarDocumentosPDF} />
             <div className="row g-3 mb-4">
-                {tiposDoc.map(({ key, tipo }) => {
-                    const doc = docMap[tipo];
-                    const entregado = !!(doc?.url);
+                {(data.documentos ?? []).map((doc, idx) => {
+                    const entregado = !!(doc.url && doc.url.trim() !== '');
                     return (
-                        <div className="col-md-6" key={key}>
+                        <div className="col-md-6" key={idx}>
                             <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderLeft: `4px solid ${entregado ? '#16a34a' : '#dc2626'}` }}>
-                                <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 8, fontSize: 14 }}>{tipo}</div>
+                                <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 8, fontSize: 14 }}>{doc.tipo}</div>
                                 {entregado ? (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                         <span style={{ background: '#dcfce7', color: '#15803d', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>✓ Entregado</span>
@@ -242,13 +390,16 @@ function SeccionDocumentos({ userId, onVolver }) {
                 <div style={{ background: '#fff', borderRadius: 14, padding: '24px 28px', boxShadow: '0 2px 10px rgba(0,0,0,0.06)', maxWidth: 600 }}>
                     <h6 style={{ color: '#1a3a6b', fontWeight: 700, marginBottom: 16 }}>Subir documentos (PDF, JPG, PNG — máx 5MB c/u)</h6>
                     <form onSubmit={subirDocs}>
-                        {tiposDoc.filter(({ tipo }) => !docMap[tipo]?.url).map(({ key, tipo }) => (
-                            <div key={key} style={{ marginBottom: 14 }}>
-                                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>{tipo}</label>
-                                <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="form-control" style={{ borderRadius: 8, fontSize: 13 }}
-                                    onChange={e => setFiles(f => ({ ...f, [key]: e.target.files[0] }))} required />
-                            </div>
-                        ))}
+                        {(data.documentos ?? []).filter(doc => !doc.url || doc.url.trim() === '').map((doc, idx) => {
+                            const key = `documento_${idx}`;
+                            return (
+                                <div key={key} style={{ marginBottom: 14 }}>
+                                    <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>{doc.tipo}</label>
+                                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="form-control" style={{ borderRadius: 8, fontSize: 13 }}
+                                        onChange={e => setFiles(f => ({ ...f, [key]: e.target.files[0] }))} required />
+                                </div>
+                            );
+                        })}
                         {msg && <div style={{ background: msg.ok ? '#d1fae5' : '#fee2e2', color: msg.ok ? '#065f46' : '#991b1b', borderRadius: 8, padding: '8px 14px', marginBottom: 12, fontSize: 13 }}>{msg.texto}</div>}
                         <div style={{ display: 'flex', gap: 10 }}>
                             <button type="submit" disabled={subiendo} style={{ background: '#f59e0b', border: 'none', borderRadius: 8, padding: '9px 22px', fontWeight: 700, color: '#1a3a6b', cursor: 'pointer', fontSize: 14 }}>
@@ -273,6 +424,49 @@ function SeccionPago({ userId, onVolver }) {
             .then(r => r.json()).then(setPago).catch(() => setPago(null));
     }, []);
 
+    const exportarPagoCSV = () => {
+        if (!pago) return;
+        const headers = ['Concepto', 'Monto', 'Fecha', 'Referencia', 'Estado'];
+        const fila = [
+            pago.concepto || 'Inscripcion CUP 2026',
+            'Bs. ' + (pago.monto || '700.00'),
+            pago.fecha ? new Date(pago.fecha).toLocaleDateString('es-BO') : '',
+            pago.pasarela_referencia || '',
+            pago.estado || '',
+        ];
+        const csv = '﻿' + headers.join(',') + '\n' +
+            fila.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = 'mi_comprobante_pago.csv'; link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const exportarPagoPDF = () => {
+        if (!pago) return;
+        const doc = new jsPDF();
+        doc.setFontSize(16); doc.setTextColor(26, 58, 107);
+        doc.text('CUP-FICCT - Comprobante de Pago', 14, 15);
+        doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+        doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
+        doc.autoTable({
+            startY: 30,
+            head: [['Campo', 'Detalle']],
+            body: [
+                ['Concepto', pago.concepto || 'Inscripcion CUP 2026'],
+                ['Monto', 'Bs. ' + parseFloat(pago.monto ?? 0).toFixed(2)],
+                ['Fecha', pago.fecha ? new Date(pago.fecha).toLocaleDateString('es-BO') : ''],
+                ['Referencia', pago.pasarela_referencia || ''],
+                ['Estado', pago.estado || 'COMPLETADO'],
+            ],
+            headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            styles: { fontSize: 9 },
+        });
+        doc.save('mi_comprobante_pago.pdf');
+    };
+
     if (pago === undefined) return <Spinner />;
 
     const Fila = ({ label, valor }) => (
@@ -292,6 +486,7 @@ function SeccionPago({ userId, onVolver }) {
                 </div>
             ) : (
                 <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', padding: '24px 28px', maxWidth: 560 }}>
+                    <BotonesExportar onCSV={exportarPagoCSV} onPDF={exportarPagoPDF} />
                     <div style={{ background: 'linear-gradient(135deg, #1a3a6b, #2563eb)', borderRadius: 10, padding: '20px 24px', color: '#fff', marginBottom: 20 }}>
                         <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 4 }}>Monto pagado</div>
                         <div style={{ fontSize: 36, fontWeight: 800 }}>Bs. {parseFloat(pago.monto ?? 0).toFixed(2)}</div>
@@ -320,6 +515,68 @@ function SeccionNotas({ userId, onVolver }) {
             .then(r => r.json()).then(setData).catch(() => {});
     }, []);
 
+    const exportarNotasCSV = () => {
+        const notas = data?.notas ?? [];
+        if (notas.length === 0) return;
+        const headers = ['Materia', 'Nota 1', 'Nota 2', 'Nota 3', 'Promedio', 'Estado'];
+        const filas = notas.map(n => [
+            n.materia || '',
+            n.nota1 ?? 'Pendiente',
+            n.nota2 ?? 'Pendiente',
+            n.nota3 ?? 'Pendiente',
+            n.nota_final ?? 'Pendiente',
+            n.estado_materia || 'Pendiente',
+        ]);
+        filas.push(['PROMEDIO GLOBAL', '', '', '', data.promedio_global ?? 'Pendiente', data.estado_admision || 'Pendiente']);
+        const csv = '﻿' + headers.join(',') + '\n' +
+            filas.map(f => f.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = 'mis_notas_cup.csv'; link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const exportarNotasPDF = () => {
+        const notas = data?.notas ?? [];
+        if (notas.length === 0) return;
+        const doc = new jsPDF();
+        doc.setFontSize(16); doc.setTextColor(26, 58, 107);
+        doc.text('CUP-FICCT - Mis Calificaciones', 14, 15);
+        doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+        doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
+        doc.autoTable({
+            startY: 30,
+            head: [['Materia', 'Nota 1', 'Nota 2', 'Nota 3', 'Promedio', 'Estado']],
+            body: [
+                ...notas.map(n => [
+                    n.materia || '',
+                    n.nota1 ?? 'Pendiente',
+                    n.nota2 ?? 'Pendiente',
+                    n.nota3 ?? 'Pendiente',
+                    n.nota_final ?? 'Pendiente',
+                    n.estado_materia || 'Pendiente',
+                ]),
+                ['PROMEDIO GLOBAL', '', '', '', data.promedio_global ?? 'Pendiente', data.estado_admision || 'Pendiente'],
+            ],
+            headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            styles: { fontSize: 9 },
+            didParseCell: function(cellData) {
+                if (cellData.column.index === 5) {
+                    if (cellData.cell.raw === 'APROBADO') {
+                        cellData.cell.styles.textColor = [22, 163, 74];
+                        cellData.cell.styles.fontStyle = 'bold';
+                    } else if (cellData.cell.raw === 'REPROBADO') {
+                        cellData.cell.styles.textColor = [220, 38, 38];
+                        cellData.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            },
+        });
+        doc.save('mis_calificaciones_cup.pdf');
+    };
+
     if (!data) return <Spinner />;
 
     const mapEstado = (e) => {
@@ -333,6 +590,9 @@ function SeccionNotas({ userId, onVolver }) {
         <div>
             <Volver onVolver={onVolver} titulo="Mis Notas" />
             <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', overflow: 'hidden', marginBottom: 20 }}>
+                <div style={{ padding: '16px 20px 0' }}>
+                    <BotonesExportar onCSV={exportarNotasCSV} onPDF={exportarNotasPDF} />
+                </div>
                 <div className="table-responsive">
                     <table className="table mb-0" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                         <thead>
@@ -383,6 +643,68 @@ function SeccionGrupo({ userId, onVolver }) {
         fetch('/api/postulante/mi-grupo', { headers: { 'Accept': 'application/json', 'X-User-Id': userId } })
             .then(r => r.json()).then(setData).catch(() => setData(null));
     }, []);
+
+    const exportarGrupoCSV = () => {
+        if (!data?.grupo) return;
+        const grupo = data.grupo;
+        const headers = ['Grupo', 'Aula', 'Horario', 'Dias', 'Total Companeros'];
+        const fila = [
+            grupo.nombre || '',
+            grupo.aula_nombre || '',
+            (grupo.horario_ini || '') + ' - ' + (grupo.horario_fin || ''),
+            grupo.dias || '',
+            String(data.total_companeros || ''),
+        ];
+        const csv = '﻿' + headers.join(',') + '\n' +
+            fila.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = 'mi_grupo_cup.csv'; link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const exportarGrupoPDF = () => {
+        if (!data?.grupo) return;
+        const grupo = data.grupo;
+        const doc = new jsPDF();
+        doc.setFontSize(16); doc.setTextColor(26, 58, 107);
+        doc.text('CUP-FICCT - Mi Grupo', 14, 15);
+        doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+        doc.text('Generado: ' + new Date().toLocaleDateString('es-BO'), 14, 22);
+        doc.autoTable({
+            startY: 30,
+            head: [['Campo', 'Detalle']],
+            body: [
+                ['Grupo', grupo.nombre || ''],
+                ['Aula', grupo.aula_nombre || ''],
+                ['Horario', (grupo.horario_ini || '') + ' - ' + (grupo.horario_fin || '')],
+                ['Dias de clase', grupo.dias || ''],
+                ['Total companeros', String(data.total_companeros || '')],
+                ['Carrera Asignada', data.carrera_asignada || 'En proceso'],
+                ['Gestion', String(data.gestion || '')],
+            ],
+            headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            styles: { fontSize: 9 },
+        });
+        const docentes = data.docentes_materias ?? [];
+        if (docentes.length > 0) {
+            doc.autoTable({
+                startY: doc.lastAutoTable.finalY + 10,
+                head: [['Materia', 'Docente', 'Aula']],
+                body: docentes.map(d => [
+                    d.materia || '',
+                    (d.docente_nombres || '') + ' ' + (d.docente_apellidos || ''),
+                    d.aula_materia || '',
+                ]),
+                headStyles: { fillColor: [26, 58, 107], textColor: [255, 255, 255], fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                styles: { fontSize: 9 },
+            });
+        }
+        doc.save('mi_grupo_cup.pdf');
+    };
 
     if (data === undefined) return <Spinner />;
 
@@ -435,6 +757,7 @@ function SeccionGrupo({ userId, onVolver }) {
     return (
         <div>
             <Volver onVolver={onVolver} titulo="Mi Grupo" />
+            <BotonesExportar onCSV={exportarGrupoCSV} onPDF={exportarGrupoPDF} />
 
             {/* 1. Card información del grupo */}
             <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.08)', padding: '24px 28px', marginBottom: 24 }}>

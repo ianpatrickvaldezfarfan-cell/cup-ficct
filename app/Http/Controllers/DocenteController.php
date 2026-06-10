@@ -523,21 +523,73 @@ class DocenteController extends Controller
                 ->get();
 
             $grupos[] = [
-                'grupo_id'     => $asig->grupo_id,
-                'grupo_nombre' => $asig->grupo_nombre,
-                'gestion'      => $asig->gestion,
-                'materia'      => $asig->materia,
-                'materia_id'   => $asig->materia_id,
-                'aula'         => $asig->aula,
-                'horario_ini'  => $asig->horario_ini,
-                'horario_fin'  => $asig->horario_fin,
-                'dias'         => $asig->dias,
-                'turno'        => $asig->turno,
-                'postulantes'  => $postulantes,
+                'grupo_id'          => $asig->grupo_id,
+                'grupo_nombre'      => $asig->grupo_nombre,
+                'gestion'           => $asig->gestion,
+                'materia'           => $asig->materia,
+                'materia_id'        => $asig->materia_id,
+                'aula'              => $asig->aula,
+                'horario_ini'       => $asig->horario_ini,
+                'horario_fin'       => $asig->horario_fin,
+                'dias'              => $asig->dias,
+                'turno'             => $asig->turno,
+                'total_estudiantes' => $postulantes->count(),
+                'postulantes'       => $postulantes,
             ];
         }
 
         return response()->json($grupos);
+    }
+
+    public function misDatos(Request $request)
+    {
+        $userId  = $request->header('X-User-Id');
+        $docente = DB::table('docentes as d')
+            ->join('usuarios as u', 'u.id', '=', 'd.usuario_id')
+            ->where('d.usuario_id', $userId)
+            ->select('d.*', 'u.username', 'u.correo as correo_usuario', 'u.estado')
+            ->first();
+
+        if (!$docente) {
+            return response()->json(['error' => 'No encontrado'], 404);
+        }
+        return response()->json($docente);
+    }
+
+    public function actualizarMisDatos(Request $request)
+    {
+        $userId = $request->header('X-User-Id');
+
+        $request->validate([
+            'nombres'   => 'required|string',
+            'apellidos' => 'required|string',
+            'correo'    => 'required|email',
+        ]);
+
+        DB::table('docentes')
+            ->where('usuario_id', $userId)
+            ->update([
+                'nombres'    => $request->nombres,
+                'apellidos'  => $request->apellidos,
+                'correo'     => $request->correo,
+                'updated_at' => now(),
+            ]);
+
+        DB::table('usuarios')
+            ->where('id', $userId)
+            ->update([
+                'correo'     => $request->correo,
+                'updated_at' => now(),
+            ]);
+
+        BitacoraService::registrar(
+            $userId,
+            'UPDATE',
+            'docentes',
+            'Docente actualizo sus datos personales'
+        );
+
+        return response()->json(['success' => true, 'mensaje' => 'Datos actualizados correctamente']);
     }
 
     public function estadisticas()

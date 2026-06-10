@@ -114,3 +114,7 @@ Route::get("/postulante/mi-pago",        [PostulantePortalController::class, "mi
 Route::get("/postulante/mis-notas",      [PostulantePortalController::class, "misNotas"]);
 Route::get("/postulante/mi-grupo",         [PostulantePortalController::class, "miGrupo"]);
 Route::put("/postulante/cambiar-password", [PostulantePortalController::class, "cambiarPassword"]);
+
+// ===== PORTAL DOCENTE =====
+Route::get("/docente/mis-datos", [DocenteController::class, "misDatos"]);
+Route::put("/docente/mis-datos", [DocenteController::class, "actualizarMisDatos"]);
